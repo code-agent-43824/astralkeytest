@@ -1,5 +1,8 @@
 name: Build and publish release
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -49,14 +52,10 @@ jobs:
           pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
-      - name: Pack iOS app bundle
-        run: |
-          cd build/ios/iphoneos
-          zip -r Runner-ios-release-no-codesign.zip Runner.app
       - uses: actions/upload-artifact@v4
         with:
-          name: release-ios-runner
-          path: build/ios/iphoneos/Runner-ios-release-no-codesign.zip
+          name: release-ios-runner-app
+          path: build/ios/iphoneos/Runner.app
           if-no-files-found: error
 
   windows:
@@ -72,13 +71,10 @@ jobs:
           pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build windows --release
-      - name: Pack Windows build
-        shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/windows/x64/runner/windows-x64-release.zip -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: release-windows-x64
-          path: build/windows/x64/runner/windows-x64-release.zip
+          name: release-windows-x64-dir
+          path: build/windows/x64/runner/Release
           if-no-files-found: error
 
   publish:
@@ -90,7 +86,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-          merge-multiple: true
+      - name: Package release assets (single archives)
+        run: |
+          set -e
+          mkdir -p release-assets
+          cp dist/release-android-apk/app-release.apk release-assets/
+          cd dist/release-ios-runner-app
+          zip -r ../../release-assets/Runner-ios-release-no-codesign.zip Runner.app
+          cd ../../dist/release-windows-x64-dir
+          zip -r ../../release-assets/windows-x64-release.zip Release
       - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -104,8 +108,8 @@ jobs:
           notes="${NOTES:-Automated release build from workflow_dispatch.}"
 
           if gh release view "$TAG" -R "$GH_REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber -R "$GH_REPO"
+            gh release upload "$TAG" release-assets/* --clobber -R "$GH_REPO"
             gh release edit "$TAG" --title "$title" --notes "$notes" -R "$GH_REPO"
           else
-            gh release create "$TAG" dist/* --title "$title" --notes "$notes" -R "$GH_REPO"
+            gh release create "$TAG" release-assets/* --title "$title" --notes "$notes" -R "$GH_REPO"
           fi

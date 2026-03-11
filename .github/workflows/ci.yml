@@ -1,5 +1,8 @@
 name: Build Flutter targets
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [main]
@@ -44,15 +47,11 @@ jobs:
         run: flutter pub get
       - name: Build iOS (no codesign)
         run: flutter build ios --debug --no-codesign
-      - name: Pack iOS app bundle
-        run: |
-          cd build/ios/iphoneos
-          zip -r Runner-ios-no-codesign.zip Runner.app
-      - name: Upload iOS artifact
+      - name: Upload iOS artifact (single extraction)
         uses: actions/upload-artifact@v4
         with:
           name: ios-runner-no-codesign
-          path: build/ios/iphoneos/Runner-ios-no-codesign.zip
+          path: build/ios/iphoneos/Runner.app
           if-no-files-found: error
 
   windows:
@@ -70,12 +69,9 @@ jobs:
         run: flutter pub get
       - name: Build Windows
         run: flutter build windows --release
-      - name: Pack Windows build
-        shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/windows/x64/runner/windows-x64-release.zip -Force
-      - name: Upload Windows artifact
+      - name: Upload Windows artifact (single extraction)
         uses: actions/upload-artifact@v4
         with:
           name: windows-x64-release
-          path: build/windows/x64/runner/windows-x64-release.zip
+          path: build/windows/x64/runner/Release
           if-no-files-found: error
