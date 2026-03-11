@@ -6,9 +6,10 @@ void main() {
     await tester.pumpWidget(const AstralKeyTestApp());
 
     expect(find.text('Добро пожаловать'), findsOneWidget);
-    expect(find.text('Логин'), findsOneWidget);
+    expect(find.text('E-mail'), findsNWidgets(2)); // сегмент и label поля
+    expect(find.text('Телефон'), findsOneWidget);
     expect(find.text('Пароль'), findsOneWidget);
     expect(find.text('Войти'), findsOneWidget);
-    expect(find.text('v.0.0.1'), findsOneWidget);
+    expect(find.text('v.0.0.2'), findsOneWidget);
   });
 }
