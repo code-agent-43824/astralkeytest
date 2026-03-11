@@ -19,6 +19,12 @@ jobs:
         run: flutter pub get
       - name: Build APK (debug)
         run: flutter build apk --debug
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
 
   ios:
     name: iOS (macos-latest)
@@ -32,6 +38,16 @@ jobs:
         run: flutter pub get
       - name: Build iOS (no codesign)
         run: flutter build ios --debug --no-codesign
+      - name: Pack iOS app bundle
+        run: |
+          cd build/ios/iphoneos
+          zip -r Runner-ios-no-codesign.zip Runner.app
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-runner-no-codesign
+          path: build/ios/iphoneos/Runner-ios-no-codesign.zip
+          if-no-files-found: error
 
   windows:
     name: Windows x64 (windows-latest)
@@ -45,3 +61,12 @@ jobs:
         run: flutter pub get
       - name: Build Windows
         run: flutter build windows --release
+      - name: Pack Windows build
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/windows/x64/runner/windows-x64-release.zip -Force
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-release
+          path: build/windows/x64/runner/windows-x64-release.zip
+          if-no-files-found: error

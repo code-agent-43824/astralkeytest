@@ -9,5 +9,6 @@ void main() {
     expect(find.text('Логин'), findsOneWidget);
     expect(find.text('Пароль'), findsOneWidget);
     expect(find.text('Войти'), findsOneWidget);
+    expect(find.text('v.0.0.1'), findsOneWidget);
   });
 }
