@@ -97,25 +97,26 @@ jobs:
       - name: Package release assets (single archives)
         run: |
           set -e
-          mkdir -p release-assets
+          mkdir -p release-assets stage/Runner.app stage/windows-x64-release
 
           cp dist/release-android-apk/app-release.apk release-assets/
 
-          ios_app_dir="$(find dist -type d -name Runner.app | head -n 1)"
-          if [ -z "$ios_app_dir" ]; then
-            echo "Runner.app not found in downloaded artifacts"
+          if [ ! -d "dist/release-ios-runner-app" ]; then
+            echo "iOS artifact directory not found"
             find dist -maxdepth 4 -type d | sed -n '1,200p'
             exit 1
           fi
-          (cd "$(dirname "$ios_app_dir")" && zip -r "$GITHUB_WORKSPACE/release-assets/Runner-ios-release-no-codesign.zip" "$(basename "$ios_app_dir")")
+          cp -a dist/release-ios-runner-app/. stage/Runner.app/
 
-          win_dir="$(find dist -type d -name Release | head -n 1)"
-          if [ -z "$win_dir" ]; then
-            echo "Windows Release dir not found in downloaded artifacts"
+          if [ ! -d "dist/release-windows-x64-dir" ]; then
+            echo "Windows artifact directory not found"
             find dist -maxdepth 4 -type d | sed -n '1,200p'
             exit 1
           fi
-          (cd "$(dirname "$win_dir")" && zip -r "$GITHUB_WORKSPACE/release-assets/windows-x64-release.zip" "$(basename "$win_dir")")
+          cp -a dist/release-windows-x64-dir/. stage/windows-x64-release/
+
+          (cd stage && zip -r "$GITHUB_WORKSPACE/release-assets/Runner-ios-release-no-codesign.zip" Runner.app)
+          (cd stage && zip -r "$GITHUB_WORKSPACE/release-assets/windows-x64-release.zip" windows-x64-release)
       - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
