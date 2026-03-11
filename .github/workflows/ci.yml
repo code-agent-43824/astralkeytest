@@ -13,9 +13,11 @@ jobs:
   android:
     name: Android (ubuntu-latest)
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v3
         with:
           channel: stable
           cache: true
@@ -26,7 +28,7 @@ jobs:
       - name: Build APK (debug)
         run: flutter build apk --debug
       - name: Upload Android artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-apk-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
@@ -35,9 +37,11 @@ jobs:
   ios:
     name: iOS (macos-latest)
     runs-on: macos-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v3
         with:
           channel: stable
           cache: true
@@ -48,7 +52,7 @@ jobs:
       - name: Build iOS (no codesign)
         run: flutter build ios --debug --no-codesign
       - name: Upload iOS artifact (single extraction)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ios-runner-no-codesign
           path: build/ios/iphoneos/Runner.app
@@ -57,9 +61,11 @@ jobs:
   windows:
     name: Windows x64 (windows-latest)
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v3
         with:
           channel: stable
           cache: true
@@ -70,7 +76,7 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
       - name: Upload Windows artifact (single extraction)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: windows-x64-release
           path: build/windows/x64/runner/Release

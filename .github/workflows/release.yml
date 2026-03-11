@@ -23,9 +23,11 @@ jobs:
   android:
     name: Build Android artifact
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v3
         with:
           channel: stable
           cache: true
@@ -33,7 +35,7 @@ jobs:
           pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -42,9 +44,11 @@ jobs:
   ios:
     name: Build iOS artifact (no codesign)
     runs-on: macos-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v3
         with:
           channel: stable
           cache: true
@@ -52,7 +56,7 @@ jobs:
           pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release-ios-runner-app
           path: build/ios/iphoneos/Runner.app
@@ -61,9 +65,11 @@ jobs:
   windows:
     name: Build Windows artifact
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v3
         with:
           channel: stable
           cache: true
@@ -71,7 +77,7 @@ jobs:
           pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build windows --release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release-windows-x64-dir
           path: build/windows/x64/runner/Release
@@ -80,21 +86,36 @@ jobs:
   publish:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [android, ios, windows]
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: dist
       - name: Package release assets (single archives)
         run: |
           set -e
           mkdir -p release-assets
+
           cp dist/release-android-apk/app-release.apk release-assets/
-          cd dist/release-ios-runner-app
-          zip -r ../../release-assets/Runner-ios-release-no-codesign.zip Runner.app
-          cd ../../dist/release-windows-x64-dir
-          zip -r ../../release-assets/windows-x64-release.zip Release
+
+          ios_app_dir="$(find dist -type d -name Runner.app | head -n 1)"
+          if [ -z "$ios_app_dir" ]; then
+            echo "Runner.app not found in downloaded artifacts"
+            find dist -maxdepth 4 -type d | sed -n '1,200p'
+            exit 1
+          fi
+          (cd "$(dirname "$ios_app_dir")" && zip -r "$GITHUB_WORKSPACE/release-assets/Runner-ios-release-no-codesign.zip" "$(basename "$ios_app_dir")")
+
+          win_dir="$(find dist -type d -name Release | head -n 1)"
+          if [ -z "$win_dir" ]; then
+            echo "Windows Release dir not found in downloaded artifacts"
+            find dist -maxdepth 4 -type d | sed -n '1,200p'
+            exit 1
+          fi
+          (cd "$(dirname "$win_dir")" && zip -r "$GITHUB_WORKSPACE/release-assets/windows-x64-release.zip" "$(basename "$win_dir")")
       - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
