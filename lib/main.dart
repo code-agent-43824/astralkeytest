@@ -78,6 +78,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   static const _baseUrl = 'https://identity.demo.astral-dev.ru';
+  static const _captchaBypassEnabledForDemo = true;
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _loginController = TextEditingController();
@@ -187,6 +188,51 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'Ошибка авторизации (HTTP $statusCode)';
   }
 
+  String _extractBypassToken(String rawBody) {
+    final trimmed = rawBody.trim();
+    if (trimmed.isEmpty) {
+      throw Exception('пустой токен обхода капчи');
+    }
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is String && decoded.trim().isNotEmpty) {
+        return decoded.trim();
+      }
+    } catch (_) {
+      // fallback to raw body below
+    }
+
+    return trimmed.replaceAll('"', '');
+  }
+
+  Future<void> _applyDemoCaptchaBypass() async {
+    if (!_captchaBypassEnabledForDemo) return;
+
+    final tokenResponse = await http.get(
+      Uri.parse('$_baseUrl/api/integrations/captcha/exclude'),
+    );
+
+    if (tokenResponse.statusCode != 200) {
+      throw Exception(
+        'не удалось получить токен обхода капчи (HTTP ${tokenResponse.statusCode})',
+      );
+    }
+
+    final bypassToken = _extractBypassToken(tokenResponse.body);
+
+    final disableUri = Uri.parse(
+      '$_baseUrl/api/accounts/captcha/disable',
+    ).replace(queryParameters: {'token': bypassToken});
+
+    final disableResponse = await http.get(disableUri);
+    if (disableResponse.statusCode != 200) {
+      throw Exception(
+        'не удалось отключить капчу (HTTP ${disableResponse.statusCode})',
+      );
+    }
+  }
+
   Future<void> _onLoginPressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -195,6 +241,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      await _applyDemoCaptchaBypass();
+
       final uri = Uri.parse(
         _method == LoginMethod.email
             ? '$_baseUrl/api/accounts/email/login'

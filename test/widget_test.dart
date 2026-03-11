@@ -10,6 +10,6 @@ void main() {
     expect(find.text('Телефон'), findsOneWidget);
     expect(find.text('Пароль'), findsOneWidget);
     expect(find.text('Войти'), findsOneWidget);
-    expect(find.text('v.0.0.2'), findsOneWidget);
+    expect(find.text('v.0.0.3'), findsOneWidget);
   });
 }
