@@ -25,6 +25,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+          pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
@@ -41,6 +44,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+          pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
       - name: Pack iOS app bundle
@@ -61,6 +67,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+          pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
       - run: flutter pub get
       - run: flutter build windows --release
       - name: Pack Windows build
