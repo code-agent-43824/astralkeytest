@@ -94,6 +94,7 @@ jobs:
       - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ github.event.inputs.tag }}
           TITLE: ${{ github.event.inputs.title }}
           NOTES: ${{ github.event.inputs.notes }}
@@ -102,9 +103,9 @@ jobs:
           title="${TITLE:-$TAG}"
           notes="${NOTES:-Automated release build from workflow_dispatch.}"
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber
-            gh release edit "$TAG" --title "$title" --notes "$notes"
+          if gh release view "$TAG" -R "$GH_REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber -R "$GH_REPO"
+            gh release edit "$TAG" --title "$title" --notes "$notes" -R "$GH_REPO"
           else
-            gh release create "$TAG" dist/* --title "$title" --notes "$notes"
+            gh release create "$TAG" dist/* --title "$title" --notes "$notes" -R "$GH_REPO"
           fi
