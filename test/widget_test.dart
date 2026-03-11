@@ -10,6 +10,7 @@ void main() {
     expect(find.text('Prod (пока недоступно)'), findsOneWidget);
     expect(find.text('API Auth'), findsOneWidget);
     expect(find.text('Web Auth'), findsOneWidget);
-    expect(find.text('v.0.0.6'), findsOneWidget);
+    expect(find.text('Web Auth (w/o client id)'), findsOneWidget);
+    expect(find.text('v.0.0.7'), findsOneWidget);
   });
 }

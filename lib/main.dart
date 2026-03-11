@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:http/http.dart' as http;
+import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
   runApp(const AstralKeyTestApp());
@@ -114,6 +115,17 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
                     );
                   },
                   child: const Text('Web Auth'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const WebAuthNoClientIdScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Web Auth (w/o client id)'),
                 ),
                 const SizedBox(height: 16),
                 Opacity(
@@ -560,6 +572,62 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class WebAuthNoClientIdScreen extends StatefulWidget {
+  const WebAuthNoClientIdScreen({super.key});
+
+  @override
+  State<WebAuthNoClientIdScreen> createState() => _WebAuthNoClientIdScreenState();
+}
+
+class _WebAuthNoClientIdScreenState extends State<WebAuthNoClientIdScreen> {
+  static const _loginPageUrl = 'https://identity.demo.astral-dev.ru/account/login';
+
+  late final WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(Uri.parse(_loginPageUrl));
+  }
+
+  void _finishWithoutToken() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const AuthResultScreen(
+          result: AuthResultData(
+            flow: 'Web Auth (w/o client id)',
+            ok: false,
+            message: 'Токен не получен',
+            errorCode: 'TOKEN_NOT_RECEIVED',
+          ),
+        ),
+      ),
+      (route) => route.isFirst,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Web Auth (w/o client id)')),
+      body: Column(
+        children: [
+          Expanded(child: WebViewWidget(controller: _controller)),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: FilledButton(
+              onPressed: _finishWithoutToken,
+              child: const Text('Завершить без токена'),
+            ),
+          ),
+        ],
       ),
     );
   }
