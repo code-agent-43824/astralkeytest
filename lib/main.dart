@@ -1,13 +1,10 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:astralkeytest/src/core/app_version.dart';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:http/http.dart' as http;
-import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
   runApp(const AstralKeyTestApp());
@@ -104,9 +101,7 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
                 FilledButton(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ApiAuthScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const ApiAuthScreen()),
                     );
                   },
                   child: const Text('API Auth'),
@@ -115,9 +110,7 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
                 FilledButton.tonal(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const WebAuthScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const WebAuthScreen()),
                     );
                   },
                   child: const Text('Web Auth'),
@@ -252,7 +245,7 @@ class _ApiAuthScreenState extends State<ApiAuthScreen> {
     return null;
   }
 
-  String _extractErrorMessage(String rawBody, int statusCode) {
+  String _extractErrorMessage(String rawBody) {
     try {
       final decoded = jsonDecode(rawBody);
       if (decoded is Map<String, dynamic>) {
@@ -316,7 +309,7 @@ class _ApiAuthScreenState extends State<ApiAuthScreen> {
           AuthResultData(
             flow: 'API Auth',
             ok: false,
-            message: _extractErrorMessage(response.body, response.statusCode),
+            message: _extractErrorMessage(response.body),
             errorCode: 'HTTP_${response.statusCode}',
           ),
         );
@@ -459,177 +452,88 @@ class WebAuthScreen extends StatefulWidget {
 }
 
 class _WebAuthScreenState extends State<WebAuthScreen> {
-  static const _baseUrl = 'https://identity.demo.astral-dev.ru';
-  static const _redirectUri = 'astralkeytest://oauth/callback';
+  static const _discoveryUrl =
+      'https://identity.demo.astral-dev.ru/.well-known/openid-configuration';
   static const _clientId = String.fromEnvironment('ASTRAL_OIDC_CLIENT_ID');
+  static const _redirectUri =
+      String.fromEnvironment('ASTRAL_OIDC_REDIRECT_URI', defaultValue: 'astralkeytest://oauth/callback');
 
-  late final WebViewController _controller;
-  String _status = 'Инициализация...';
-
-  String? _state;
-  String? _codeVerifier;
-  bool _finished = false;
+  final FlutterAppAuth _appAuth = const FlutterAppAuth();
+  String _status = 'Подготовка Web Auth...';
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: _onNavigationRequest,
-        ),
-      );
-
-    unawaited(_startAuth());
+    _runAuth();
   }
 
-  Future<void> _startAuth() async {
+  Future<void> _runAuth() async {
     if (_clientId.isEmpty) {
       _finish(
         const AuthResultData(
           flow: 'Web Auth',
           ok: false,
-          message: 'Не задан ASTRAL_OIDC_CLIENT_ID для Web Auth',
+          message: 'Не задан ASTRAL_OIDC_CLIENT_ID',
           errorCode: 'CLIENT_NOT_CONFIGURED',
         ),
       );
       return;
     }
 
-    final codeVerifier = _generateCodeVerifier();
-    final codeChallenge = _generateCodeChallenge(codeVerifier);
-    final state = _randomBase64Url(24);
+    try {
+      setState(() => _status = 'Открываем системный экран аутентификации...');
 
-    _codeVerifier = codeVerifier;
-    _state = state;
+      final result = await _appAuth.authorizeAndExchangeCode(
+        AuthorizationTokenRequest(
+          _clientId,
+          _redirectUri,
+          discoveryUrl: _discoveryUrl,
+          scopes: const ['openid', 'profile', 'email'],
+          promptValues: const ['login'],
+        ),
+      );
 
-    final authorizeUri = Uri.parse('$_baseUrl/connect/authorize').replace(
-      queryParameters: {
-        'client_id': _clientId,
-        'response_type': 'code',
-        'redirect_uri': _redirectUri,
-        'scope': 'openid profile email',
-        'state': state,
-        'code_challenge': codeChallenge,
-        'code_challenge_method': 'S256',
-      },
-    );
-
-    setState(() => _status = 'Открываем страницу входа...');
-    await _controller.loadRequest(authorizeUri);
-  }
-
-  NavigationDecision _onNavigationRequest(NavigationRequest request) {
-    if (request.url.startsWith(_redirectUri)) {
-      final uri = Uri.parse(request.url);
-      unawaited(_handleRedirect(uri));
-      return NavigationDecision.prevent;
-    }
-
-    return NavigationDecision.navigate;
-  }
-
-  Future<void> _handleRedirect(Uri uri) async {
-    if (_finished) return;
-
-    final error = uri.queryParameters['error'];
-    if (error != null) {
+      if (result.accessToken != null) {
+        _finish(
+          const AuthResultData(
+            flow: 'Web Auth',
+            ok: true,
+            message: 'Авторизация успешна',
+          ),
+        );
+      } else {
+        _finish(
+          const AuthResultData(
+            flow: 'Web Auth',
+            ok: false,
+            message: 'Токен не получен',
+            errorCode: 'TOKEN_EMPTY',
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
       _finish(
         AuthResultData(
           flow: 'Web Auth',
           ok: false,
-          message: uri.queryParameters['error_description'] ?? 'Ошибка web auth',
-          errorCode: error,
+          message: e.message ?? 'Ошибка системной аутентификации',
+          errorCode: e.code,
         ),
       );
-      return;
-    }
-
-    final code = uri.queryParameters['code'];
-    final returnedState = uri.queryParameters['state'];
-
-    if (code == null || returnedState == null || _state != returnedState) {
+    } catch (e) {
       _finish(
-        const AuthResultData(
+        AuthResultData(
           flow: 'Web Auth',
           ok: false,
-          message: 'Некорректный redirect от сервера',
-          errorCode: 'BAD_REDIRECT',
+          message: 'Ошибка: $e',
+          errorCode: 'UNEXPECTED',
         ),
       );
-      return;
     }
-
-    setState(() => _status = 'Обмениваем code на token...');
-    await _exchangeCode(code);
-  }
-
-  Future<void> _exchangeCode(String code) async {
-    final verifier = _codeVerifier;
-    if (verifier == null) {
-      _finish(
-        const AuthResultData(
-          flow: 'Web Auth',
-          ok: false,
-          message: 'Отсутствует code_verifier',
-          errorCode: 'PKCE_VERIFIER_MISSING',
-        ),
-      );
-      return;
-    }
-
-    final response = await http.post(
-      Uri.parse('$_baseUrl/connect/token'),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {
-        'grant_type': 'authorization_code',
-        'client_id': _clientId,
-        'code': code,
-        'redirect_uri': _redirectUri,
-        'code_verifier': verifier,
-      },
-    );
-
-    if (response.statusCode == 200) {
-      _finish(
-        const AuthResultData(
-          flow: 'Web Auth',
-          ok: true,
-          message: 'Авторизация успешна',
-        ),
-      );
-      return;
-    }
-
-    String errorCode = 'HTTP_${response.statusCode}';
-    String message = 'Ошибка обмена токена';
-
-    try {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (data['error'] is String) {
-        errorCode = data['error'] as String;
-      }
-      if (data['error_description'] is String) {
-        message = data['error_description'] as String;
-      }
-    } catch (_) {
-      // keep defaults
-    }
-
-    _finish(
-      AuthResultData(
-        flow: 'Web Auth',
-        ok: false,
-        message: message,
-        errorCode: errorCode,
-      ),
-    );
   }
 
   void _finish(AuthResultData result) {
-    if (_finished || !mounted) return;
-    _finished = true;
+    if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => AuthResultScreen(result: result)),
@@ -637,33 +541,25 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
     );
   }
 
-  String _generateCodeVerifier() => _randomBase64Url(64);
-
-  String _generateCodeChallenge(String verifier) {
-    final digest = sha256.convert(utf8.encode(verifier));
-    return base64UrlEncode(digest.bytes).replaceAll('=', '');
-  }
-
-  String _randomBase64Url(int length) {
-    final random = Random.secure();
-    final bytes = List<int>.generate(length, (_) => random.nextInt(256));
-    return base64UrlEncode(bytes).replaceAll('=', '');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Web Auth')),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            color: Colors.black12,
-            padding: const EdgeInsets.all(10),
-            child: Text(_status),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                _status,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          Expanded(child: WebViewWidget(controller: _controller)),
-        ],
+        ),
       ),
     );
   }
