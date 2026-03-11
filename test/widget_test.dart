@@ -11,6 +11,6 @@ void main() {
     expect(find.text('API Auth'), findsOneWidget);
     expect(find.text('Web Auth'), findsOneWidget);
     expect(find.text('Web Auth (w/o client id)'), findsOneWidget);
-    expect(find.text('v.0.0.7'), findsOneWidget);
+    expect(find.text('v.0.0.8'), findsOneWidget);
   });
 }

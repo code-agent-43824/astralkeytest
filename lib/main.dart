@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:http/http.dart' as http;
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(const AstralKeyTestApp());
@@ -587,14 +587,17 @@ class WebAuthNoClientIdScreen extends StatefulWidget {
 class _WebAuthNoClientIdScreenState extends State<WebAuthNoClientIdScreen> {
   static const _loginPageUrl = 'https://identity.demo.astral-dev.ru/account/login';
 
-  late final WebViewController _controller;
+  Future<void> _openBrowser() async {
+    final ok = await launchUrl(
+      Uri.parse(_loginPageUrl),
+      mode: LaunchMode.externalApplication,
+    );
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse(_loginPageUrl));
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось открыть браузер')),
+      );
+    }
   }
 
   void _finishWithoutToken() {
@@ -617,17 +620,33 @@ class _WebAuthNoClientIdScreenState extends State<WebAuthNoClientIdScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Web Auth (w/o client id)')),
-      body: Column(
-        children: [
-          Expanded(child: WebViewWidget(controller: _controller)),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: FilledButton(
-              onPressed: _finishWithoutToken,
-              child: const Text('Завершить без токена'),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Открой страницу аутентификации в браузере, пройди вход и капчу вручную. После этого вернись и заверши шаг без токена.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _openBrowser,
+                  child: const Text('Открыть страницу в браузере'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: _finishWithoutToken,
+                  child: const Text('Завершить без токена'),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
