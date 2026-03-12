@@ -32,9 +32,14 @@ jobs:
           test -n "$ASTRAL_OIDC_CLIENT_SECRET"
       - name: Install dependencies
         run: flutter pub get
-      - name: Build APK (debug)
-        run: flutter build apk --debug
-      - name: Emulator run (live auth entrypoint + callback check)
+      - name: Build APK (debug, e2e defines)
+        run: |
+          flutter build apk --debug \
+            --dart-define=ASTRAL_E2E_AUTO_WEBAUTH=true \
+            --dart-define=ASTRAL_OIDC_CLIENT_ID="$ASTRAL_OIDC_CLIENT_ID" \
+            --dart-define=ASTRAL_OIDC_CLIENT_SECRET="$ASTRAL_OIDC_CLIENT_SECRET" \
+            --dart-define=ASTRAL_OIDC_REDIRECT_URI=astralkey://oauth.callback
+      - name: Emulator run (live auth callback final-result check)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -43,13 +48,20 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           script: |
             adb wait-for-device
+            adb logcat -c
             adb install -r build/app/outputs/flutter-apk/app-debug.apk
             adb shell am start -W -n com.astralkey.astralkeytest/.MainActivity
-            sleep 5
-            # Live auth URL open check (server reachability + intent path)
-            adb shell am start -W -a android.intent.action.VIEW -d "https://identity.demo.astral-dev.ru/connect/authorize?client_id=${ASTRAL_OIDC_CLIENT_ID}&redirect_uri=astralkey%3A%2F%2Foauth.callback&response_type=code&scope=openid%20profile%20email%20offline_access"
-            sleep 5
-            # Callback delivery check in app plumbing
+            sleep 10
+            # Deliver callback while AppAuth flow is active
             adb shell am start -W -a android.intent.action.VIEW -d "astralkey://oauth.callback?code=ci_test_code&state=ci_test_state"
-            sleep 3
+            sleep 8
             adb shell pidof com.astralkey.astralkeytest
+            adb logcat -d > /tmp/logcat.txt
+            grep -q "WEB_AUTH_FLOW_STARTED" /tmp/logcat.txt
+            grep -q "WEB_AUTH_RESULT" /tmp/logcat.txt
+            if grep -qi "user cancelled" /tmp/logcat.txt; then
+              echo "Unexpected: user cancelled flow"
+              exit 1
+            fi
+            echo "--- WEB_AUTH markers ---"
+            grep "WEB_AUTH_" /tmp/logcat.txt

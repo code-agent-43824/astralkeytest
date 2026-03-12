@@ -55,7 +55,23 @@ class AuthMethodScreen extends StatefulWidget {
 }
 
 class _AuthMethodScreenState extends State<AuthMethodScreen> {
+  static const _autoOpenWebAuth =
+      bool.fromEnvironment('ASTRAL_E2E_AUTO_WEBAUTH', defaultValue: false);
+
   EnvironmentMode _mode = EnvironmentMode.demo;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_autoOpenWebAuth) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const WebAuthScreen()),
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -472,9 +488,16 @@ class WebAuthScreen extends StatefulWidget {
 class _WebAuthScreenState extends State<WebAuthScreen> {
   static const _discoveryUrl =
       'https://identity.demo.astral-dev.ru/.well-known/openid-configuration';
-  static const _clientId = 'astral_key';
-  static const _clientSecret = 'JAskxk427kP5Hj21';
-  static const _redirectUri = 'astralkey://oauth.callback';
+  static const _clientId =
+      String.fromEnvironment('ASTRAL_OIDC_CLIENT_ID', defaultValue: 'astral_key');
+  static const _clientSecret = String.fromEnvironment(
+    'ASTRAL_OIDC_CLIENT_SECRET',
+    defaultValue: 'JAskxk427kP5Hj21',
+  );
+  static const _redirectUri = String.fromEnvironment(
+    'ASTRAL_OIDC_REDIRECT_URI',
+    defaultValue: 'astralkey://oauth.callback',
+  );
 
   final FlutterAppAuth _appAuth = const FlutterAppAuth();
   String _status = 'Подготовка Web Auth...';
@@ -517,6 +540,7 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
     }
 
     try {
+      debugPrint('WEB_AUTH_FLOW_STARTED');
       setState(() => _status = 'Открываем системный экран аутентификации...');
 
       final result = await _appAuth.authorizeAndExchangeCode(
@@ -570,6 +594,9 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   }
 
   void _finish(AuthResultData result) {
+    debugPrint(
+      'WEB_AUTH_RESULT ok=${result.ok} code=${result.errorCode ?? 'NONE'} message=${result.message}',
+    );
     if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
