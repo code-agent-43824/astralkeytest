@@ -691,8 +691,8 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       if (!mounted || _finished) return;
       _finished = true;
       Navigator.of(context).pushAndRemoveUntil(
-        const MaterialPageRoute(
-          builder: (_) => DocumentsScreen(
+        MaterialPageRoute(
+          builder: (_) => const DocumentsScreen(
             authBanner: 'Web Auth: Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)',
           ),
         ),
