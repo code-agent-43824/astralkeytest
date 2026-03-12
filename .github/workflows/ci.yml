@@ -37,28 +37,25 @@ jobs:
   android-webauth-callback:
     name: Android WebAuth callback smoke (emulator)
     runs-on: ubuntu-latest
+    needs: [android]
+    timeout-minutes: 20
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v5
-      - uses: subosito/flutter-action@v2
+      - uses: actions/download-artifact@v5
         with:
-          channel: stable
-          cache: true
-          cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
-          pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
-      - name: Install dependencies
-        run: flutter pub get
-      - name: Build APK (debug)
-        run: flutter build apk --debug
+          name: android-apk-debug
+          path: ./artifact-apk
       - name: Emulator callback smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_6
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           script: |
-            adb install -r build/app/outputs/flutter-apk/app-debug.apk
+            adb wait-for-device
+            adb install -r ./artifact-apk/app-debug.apk
             adb shell am start -W -n com.astralkey.astralkeytest/.MainActivity
             sleep 5
             adb shell am start -W -a android.intent.action.VIEW -d "astralkey://oauth.callback?code=ci_test_code&state=ci_test_state"
