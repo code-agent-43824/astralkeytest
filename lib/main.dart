@@ -345,7 +345,11 @@ class _ApiAuthScreenState extends State<ApiAuthScreen> {
 
   void _openResult(AuthResultData result) {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => AuthResultScreen(result: result)),
+      MaterialPageRoute(
+        builder: (_) => DocumentsScreen(
+          authBanner: '${result.flow}: ${result.message}${result.errorCode != null ? ' (${result.errorCode})' : ''}',
+        ),
+      ),
       (route) => route.isFirst,
     );
   }
@@ -548,7 +552,11 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
     if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => AuthResultScreen(result: result)),
+      MaterialPageRoute(
+        builder: (_) => DocumentsScreen(
+          authBanner: '${result.flow}: ${result.message}${result.errorCode != null ? ' (${result.errorCode})' : ''}',
+        ),
+      ),
       (route) => route.isFirst,
     );
   }
@@ -603,13 +611,8 @@ class _WebAuthNoClientIdScreenState extends State<WebAuthNoClientIdScreen> {
   void _finishWithoutToken() {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => const AuthResultScreen(
-          result: AuthResultData(
-            flow: 'Web Auth (w/o client id)',
-            ok: false,
-            message: 'Токен не получен',
-            errorCode: 'TOKEN_NOT_RECEIVED',
-          ),
+        builder: (_) => const DocumentsScreen(
+          authBanner: 'Web Auth (w/o client id): Токен не получен (TOKEN_NOT_RECEIVED)',
         ),
       ),
       (route) => route.isFirst,
@@ -652,62 +655,98 @@ class _WebAuthNoClientIdScreenState extends State<WebAuthNoClientIdScreen> {
   }
 }
 
-class AuthResultScreen extends StatelessWidget {
-  const AuthResultScreen({required this.result, super.key});
+class DocumentsScreen extends StatefulWidget {
+  const DocumentsScreen({super.key, this.authBanner});
 
-  final AuthResultData result;
+  final String? authBanner;
+
+  @override
+  State<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends State<DocumentsScreen> {
+  static const _documents = [
+    'Документ №1',
+    'Документ №2',
+    'Документ №3',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.authBanner != null && widget.authBanner!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(widget.authBanner!)),
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Результат аутентификации')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  result.flow,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  result.ok ? 'OK' : 'ERROR',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: result.ok ? Colors.green : Colors.red,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  result.message,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Код ошибки: ${result.errorCode ?? '-'}',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const AuthMethodScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  },
-                  child: const Text('Назад к выбору'),
-                ),
-              ],
+      appBar: AppBar(title: const Text('Электронные перевозочные документы')),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _documents.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final title = _documents[index];
+          return SizedBox(
+            height: 96,
+            child: FilledButton.tonal(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DocumentDetailsScreen(title: title),
+                  ),
+                );
+              },
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+              ),
             ),
-          ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class DocumentDetailsScreen extends StatelessWidget {
+  const DocumentDetailsScreen({required this.title, super.key});
+
+  final String title;
+
+  static const _lorem =
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. '
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
+      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. '
+      'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(_lorem, style: Theme.of(context).textTheme.bodyLarge),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: null,
+              child: const Text('Подписать'),
+            ),
+          ],
         ),
       ),
     );
