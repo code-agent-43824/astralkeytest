@@ -18,12 +18,28 @@ jobs:
       ASTRAL_OIDC_CLIENT_SECRET: ${{ secrets.ASTRAL_OIDC_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v5
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
           pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+      - name: Cache pub + Gradle directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: android-e2e-caches-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'android/**/gradle-wrapper.properties', 'android/**/*.gradle', 'android/**/*.gradle.kts') }}
+          restore-keys: |
+            android-e2e-caches-${{ runner.os }}-
       - name: Validate required secrets
         run: |
           test -n "$ASTRAL_E2E_LOGIN"

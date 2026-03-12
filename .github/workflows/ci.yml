@@ -17,12 +17,28 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v5
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
           pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+      - name: Cache pub + Gradle directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: android-caches-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'android/**/gradle-wrapper.properties', 'android/**/*.gradle', 'android/**/*.gradle.kts') }}
+          restore-keys: |
+            android-caches-${{ runner.os }}-
       - name: Install dependencies
         run: flutter pub get
       - name: Build APK (debug)
