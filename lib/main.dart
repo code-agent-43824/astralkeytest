@@ -8,7 +8,6 @@ import 'package:astralkeytest/src/core/app_version.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -502,7 +501,6 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
     defaultValue: 'astralkey://oauth.callback',
   );
 
-  final FlutterAppAuth _appAuth = const FlutterAppAuth();
   String _status = 'Подготовка Web Auth...';
 
   @override
@@ -518,12 +516,12 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
             defaultTargetPlatform == TargetPlatform.windows);
 
     if (!supportedPlatform) {
-      _finish(
-        const AuthResultData(
-          flow: 'Web Auth',
-          ok: false,
-          message: 'Web Auth поддерживается на Android/iOS/Windows',
-          errorCode: 'PLATFORM_NOT_SUPPORTED',
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const DocumentsScreen(
+            authBanner:
+                'Web Auth: Web Auth поддерживается на Android/iOS/Windows (PLATFORM_NOT_SUPPORTED)',
+          ),
         ),
       );
       return;
