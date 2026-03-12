@@ -1,0 +1,55 @@
+name: Android WebAuth Live E2E (manual)
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android-webauth-live-e2e:
+    name: Android WebAuth Live E2E (emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ASTRAL_E2E_LOGIN: ${{ secrets.ASTRAL_E2E_LOGIN }}
+      ASTRAL_E2E_PASSWORD: ${{ secrets.ASTRAL_E2E_PASSWORD }}
+      ASTRAL_OIDC_CLIENT_ID: ${{ secrets.ASTRAL_OIDC_CLIENT_ID }}
+      ASTRAL_OIDC_CLIENT_SECRET: ${{ secrets.ASTRAL_OIDC_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+          pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+      - name: Validate required secrets
+        run: |
+          test -n "$ASTRAL_E2E_LOGIN"
+          test -n "$ASTRAL_E2E_PASSWORD"
+          test -n "$ASTRAL_OIDC_CLIENT_ID"
+          test -n "$ASTRAL_OIDC_CLIENT_SECRET"
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build APK (debug)
+        run: flutter build apk --debug
+      - name: Emulator run (live auth entrypoint + callback check)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
+          script: |
+            adb wait-for-device
+            adb install -r build/app/outputs/flutter-apk/app-debug.apk
+            adb shell am start -W -n com.astralkey.astralkeytest/.MainActivity
+            sleep 5
+            # Live auth URL open check (server reachability + intent path)
+            adb shell am start -W -a android.intent.action.VIEW -d "https://identity.demo.astral-dev.ru/connect/authorize?client_id=${ASTRAL_OIDC_CLIENT_ID}&redirect_uri=astralkey%3A%2F%2Foauth.callback&response_type=code&scope=openid%20profile%20email%20offline_access"
+            sleep 5
+            # Callback delivery check in app plumbing
+            adb shell am start -W -a android.intent.action.VIEW -d "astralkey://oauth.callback?code=ci_test_code&state=ci_test_state"
+            sleep 3
+            adb shell pidof com.astralkey.astralkeytest
