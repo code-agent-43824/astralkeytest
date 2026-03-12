@@ -41,12 +41,10 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v5
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-          cache-key: flutter-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
-          pub-cache-key: pub-:os:-:channel:-:version:-:arch:-${{ hashFiles('pubspec.lock') }}
+      - name: Install Flutter (stable)
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
       - name: Install dependencies
         run: flutter pub get
       - name: Build iOS (no codesign)
