@@ -630,7 +630,6 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
 
   final _codeController = TextEditingController();
   final _state = _randomToken();
-  final _nonce = _randomToken();
   bool _isSubmitting = false;
 
   static String _randomToken() {
@@ -646,9 +645,8 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
         'redirect_uri': widget.redirectUri,
         'response_type': 'code',
         'scope': 'openid profile email',
-        'prompt': 'login',
+        'response_mode': 'query',
         'state': _state,
-        'nonce': _nonce,
       },
     );
   }
