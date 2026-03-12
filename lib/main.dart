@@ -580,11 +580,12 @@ class MobileWebAuthScreen extends StatefulWidget {
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner) {
-    if (_finished) return;
-    _finished = true;
+    if (_finished || _navigating) return;
+    _navigating = true;
     if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future<void>.delayed(Duration.zero, () {
       if (!mounted) return;
+      _finished = true;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => DocumentsScreen(authBanner: banner),
@@ -604,6 +605,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
   bool _finished = false;
+  bool _navigating = false;
   String _status = 'Открываем страницу авторизации...';
 
   bool get _isMobile =>
