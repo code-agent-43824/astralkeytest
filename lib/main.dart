@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:astralkeytest/src/core/app_version.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
@@ -484,6 +485,23 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   }
 
   Future<void> _runAuth() async {
+    final supportedPlatform = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+
+    if (!supportedPlatform) {
+      _finish(
+        const AuthResultData(
+          flow: 'Web Auth',
+          ok: false,
+          message:
+              'Web Auth через AppAuth поддерживается только на Android/iOS',
+          errorCode: 'PLATFORM_NOT_SUPPORTED',
+        ),
+      );
+      return;
+    }
+
     try {
       setState(() => _status = 'Открываем системный экран аутентификации...');
 
