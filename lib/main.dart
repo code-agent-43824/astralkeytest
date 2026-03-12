@@ -485,6 +485,19 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   }
 
   Future<void> _runAuth() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const WindowsWebAuthScreen(
+            clientId: _clientId,
+            clientSecret: _clientSecret,
+            redirectUri: _redirectUri,
+          ),
+        ),
+      );
+      return;
+    }
+
     final supportedPlatform = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
@@ -495,7 +508,7 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
           flow: 'Web Auth',
           ok: false,
           message:
-              'Web Auth через AppAuth поддерживается только на Android/iOS',
+              'Web Auth поддерживается на Android/iOS, для Windows используется отдельная реализация',
           errorCode: 'PLATFORM_NOT_SUPPORTED',
         ),
       );
@@ -585,6 +598,177 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
                 textAlign: TextAlign.center,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class WindowsWebAuthScreen extends StatefulWidget {
+  const WindowsWebAuthScreen({
+    super.key,
+    required this.clientId,
+    required this.clientSecret,
+    required this.redirectUri,
+  });
+
+  final String clientId;
+  final String clientSecret;
+  final String redirectUri;
+
+  @override
+  State<WindowsWebAuthScreen> createState() => _WindowsWebAuthScreenState();
+}
+
+class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
+  static const _authorizeEndpoint =
+      'https://identity.demo.astral-dev.ru/connect/authorize';
+  static const _tokenEndpoint =
+      'https://identity.demo.astral-dev.ru/connect/token';
+
+  final _codeController = TextEditingController();
+  bool _isSubmitting = false;
+
+  Uri get _authUri {
+    return Uri.parse(_authorizeEndpoint).replace(
+      queryParameters: {
+        'client_id': widget.clientId,
+        'redirect_uri': widget.redirectUri,
+        'response_type': 'code',
+        'scope': 'openid profile email epd',
+        'prompt': 'login',
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openAuth() async {
+    final ok = await launchUrl(_authUri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось открыть браузер')),
+      );
+    }
+  }
+
+  String _extractCode(String input) {
+    final value = input.trim();
+    if (value.contains('://')) {
+      final uri = Uri.tryParse(value);
+      return uri?.queryParameters['code']?.trim() ?? '';
+    }
+    return value;
+  }
+
+  Future<void> _exchangeCode() async {
+    final code = _extractCode(_codeController.text);
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Вставь code или полный redirect URL')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse(_tokenEndpoint),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'grant_type': 'authorization_code',
+          'client_id': widget.clientId,
+          'client_secret': widget.clientSecret,
+          'code': code,
+          'redirect_uri': widget.redirectUri,
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const DocumentsScreen(
+              authBanner: 'Web Auth: Авторизация успешна',
+            ),
+          ),
+          (route) => route.isFirst,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => DocumentsScreen(
+              authBanner:
+                  'Web Auth: Ошибка обмена кода (HTTP_${response.statusCode})',
+            ),
+          ),
+          (route) => route.isFirst,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => DocumentsScreen(
+            authBanner: 'Web Auth: Сетевая ошибка ($e)',
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Web Auth (Windows)')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '1) Нажми кнопку ниже и войди в браузере.\n2) Скопируй параметр code из адресной строки redirect (или весь redirect URL).\n3) Вставь сюда и нажми Обменять код.',
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _openAuth,
+                  child: const Text('Открыть Web Auth в браузере'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _codeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Code или полный redirect URL',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _isSubmitting ? null : _exchangeCode,
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Обменять код'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
