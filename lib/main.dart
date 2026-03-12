@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:astralkeytest/src/core/app_version.dart';
 import 'package:flutter/foundation.dart';
@@ -628,7 +629,15 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
       'https://identity.demo.astral-dev.ru/connect/token';
 
   final _codeController = TextEditingController();
+  final _state = _randomToken();
+  final _nonce = _randomToken();
   bool _isSubmitting = false;
+
+  static String _randomToken() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(24, (_) => random.nextInt(256));
+    return base64UrlEncode(bytes).replaceAll('=', '');
+  }
 
   Uri get _authUri {
     return Uri.parse(_authorizeEndpoint).replace(
@@ -636,8 +645,10 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
         'client_id': widget.clientId,
         'redirect_uri': widget.redirectUri,
         'response_type': 'code',
-        'scope': 'openid profile email epd',
+        'scope': 'openid profile email',
         'prompt': 'login',
+        'state': _state,
+        'nonce': _nonce,
       },
     );
   }
@@ -667,12 +678,24 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
   }
 
   Future<void> _exchangeCode() async {
-    final code = _extractCode(_codeController.text);
+    final input = _codeController.text.trim();
+    final code = _extractCode(input);
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Вставь code или полный redirect URL')),
       );
       return;
+    }
+
+    if (input.contains('://')) {
+      final uri = Uri.tryParse(input);
+      final returnedState = uri?.queryParameters['state'];
+      if (returnedState != null && returnedState.isNotEmpty && returnedState != _state) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('State не совпадает, авторизация отклонена')),
+        );
+        return;
+      }
     }
 
     setState(() => _isSubmitting = true);
