@@ -579,6 +579,20 @@ class MobileWebAuthScreen extends StatefulWidget {
 }
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
+  void _finishFlow(String banner) {
+    if (_finished) return;
+    _finished = true;
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => DocumentsScreen(authBanner: banner),
+        ),
+        (route) => route.isFirst,
+      );
+    });
+  }
   static const _authorizeEndpoint =
       'https://identity.demo.astral-dev.ru/connect/authorize';
   static const _tokenEndpoint =
@@ -689,15 +703,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
 
     final watchdog = Timer(const Duration(seconds: 25), () {
       if (!mounted || _finished) return;
-      _finished = true;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const DocumentsScreen(
-            authBanner: 'Web Auth: Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)',
-          ),
-        ),
-        (route) => route.isFirst,
-      );
+      _finishFlow('Web Auth: Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)');
     });
 
     try {
@@ -730,25 +736,10 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       }
 
       if (response.statusCode == 200) {
-        _finished = true;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const DocumentsScreen(
-              authBanner: 'Web Auth: Авторизация успешна',
-            ),
-          ),
-          (route) => route.isFirst,
-        );
+        _finishFlow('Web Auth: Авторизация успешна');
       } else {
-        _finished = true;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => DocumentsScreen(
-              authBanner:
-                  'Web Auth: Ошибка обмена кода (HTTP_${response.statusCode}) ${response.body.isNotEmpty ? response.body : ''}',
-            ),
-          ),
-          (route) => route.isFirst,
+        _finishFlow(
+          'Web Auth: Ошибка обмена кода (HTTP_${response.statusCode}) ${response.body.isNotEmpty ? response.body : ''}',
         );
       }
     } catch (e) {
@@ -757,17 +748,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
           _status = 'Ошибка обмена: $e';
         });
       }
-      _finished = true;
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => DocumentsScreen(
-              authBanner: 'Web Auth: Сетевая ошибка ($e)',
-            ),
-          ),
-          (route) => route.isFirst,
-        );
-      }
+      _finishFlow('Web Auth: Сетевая ошибка ($e)');
     } finally {
       watchdog.cancel();
       if (mounted) setState(() => _isSubmitting = false);
