@@ -699,13 +699,18 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      final basicAuth = base64Encode(
+        utf8.encode('${widget.clientId}:${widget.clientSecret}'),
+      );
+
       final response = await http.post(
         Uri.parse(_tokenEndpoint),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic $basicAuth',
+        },
         body: {
           'grant_type': 'authorization_code',
-          'client_id': widget.clientId,
-          'client_secret': widget.clientSecret,
           'code': code,
           'redirect_uri': widget.redirectUri,
         },
