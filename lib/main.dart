@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:math';
 
+import 'package:app_links/app_links.dart';
 import 'package:astralkeytest/src/core/app_version.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -510,104 +512,31 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   }
 
   Future<void> _runAuth() async {
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const WindowsWebAuthScreen(
-            clientId: _clientId,
-            clientSecret: _clientSecret,
-            redirectUri: _redirectUri,
-          ),
-        ),
-      );
-      return;
-    }
-
     final supportedPlatform = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS);
+            defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.windows);
 
     if (!supportedPlatform) {
       _finish(
         const AuthResultData(
           flow: 'Web Auth',
           ok: false,
-          message:
-              'Web Auth поддерживается на Android/iOS, для Windows используется отдельная реализация',
+          message: 'Web Auth поддерживается на Android/iOS/Windows',
           errorCode: 'PLATFORM_NOT_SUPPORTED',
         ),
       );
       return;
     }
 
-    try {
-      debugPrint('WEB_AUTH_FLOW_STARTED');
-      dev.log('WEB_AUTH_FLOW_STARTED', name: 'WEB_AUTH');
-      setState(() => _status = 'Открываем системный экран аутентификации...');
-
-      final result = await _appAuth.authorizeAndExchangeCode(
-        AuthorizationTokenRequest(
-          _clientId,
-          _redirectUri,
-          discoveryUrl: _discoveryUrl,
-          clientSecret: _clientSecret,
-          scopes: const ['openid'],
-        ),
-      );
-
-      if (result.accessToken != null) {
-        _finish(
-          const AuthResultData(
-            flow: 'Web Auth',
-            ok: true,
-            message: 'Авторизация успешна',
-          ),
-        );
-      } else {
-        _finish(
-          const AuthResultData(
-            flow: 'Web Auth',
-            ok: false,
-            message: 'Токен не получен',
-            errorCode: 'TOKEN_EMPTY',
-          ),
-        );
-      }
-    } on PlatformException catch (e) {
-      _finish(
-        AuthResultData(
-          flow: 'Web Auth',
-          ok: false,
-          message: e.message ?? 'Ошибка системной аутентификации',
-          errorCode: e.code,
-        ),
-      );
-    } catch (e) {
-      _finish(
-        AuthResultData(
-          flow: 'Web Auth',
-          ok: false,
-          message: 'Ошибка: $e',
-          errorCode: 'UNEXPECTED',
-        ),
-      );
-    }
-  }
-
-  void _finish(AuthResultData result) {
-    final marker =
-        'WEB_AUTH_RESULT ok=${result.ok} code=${result.errorCode ?? 'NONE'} message=${result.message}';
-    debugPrint(marker);
-    dev.log(marker, name: 'WEB_AUTH');
-    if (!mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
+    Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => DocumentsScreen(
-          authBanner: '${result.flow}: ${result.message}${result.errorCode != null ? ' (${result.errorCode})' : ''}',
+        builder: (_) => MobileWebAuthScreen(
+          clientId: _clientId,
+          clientSecret: _clientSecret,
+          redirectUri: _redirectUri,
         ),
       ),
-      (route) => route.isFirst,
     );
   }
 
@@ -635,8 +564,8 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   }
 }
 
-class WindowsWebAuthScreen extends StatefulWidget {
-  const WindowsWebAuthScreen({
+class MobileWebAuthScreen extends StatefulWidget {
+  const MobileWebAuthScreen({
     super.key,
     required this.clientId,
     required this.clientSecret,
@@ -648,10 +577,10 @@ class WindowsWebAuthScreen extends StatefulWidget {
   final String redirectUri;
 
   @override
-  State<WindowsWebAuthScreen> createState() => _WindowsWebAuthScreenState();
+  State<MobileWebAuthScreen> createState() => _MobileWebAuthScreenState();
 }
 
-class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
+class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   static const _authorizeEndpoint =
       'https://identity.demo.astral-dev.ru/connect/authorize';
   static const _tokenEndpoint =
@@ -659,6 +588,8 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
 
   final _codeController = TextEditingController();
   final _state = _randomToken();
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
 
   static String _randomToken() {
@@ -673,7 +604,7 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
         'client_id': widget.clientId,
         'redirect_uri': widget.redirectUri,
         'response_type': 'code',
-        'scope': 'openid profile email',
+        'scope': 'openid',
         'response_mode': 'query',
         'state': _state,
       },
@@ -681,7 +612,25 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS)) {
+      _sub = _appLinks.uriLinkStream.listen((uri) {
+        final text = uri.toString();
+        if (text.startsWith('${widget.redirectUri.split('?').first}')) {
+          _codeController.text = text;
+          _exchangeCode();
+        }
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openAuth());
+    }
+  }
+
+  @override
   void dispose() {
+    _sub?.cancel();
     _codeController.dispose();
     super.dispose();
   }
@@ -785,7 +734,7 @@ class _WindowsWebAuthScreenState extends State<WindowsWebAuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Web Auth (Windows)')),
+      appBar: AppBar(title: const Text('Web Auth')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
