@@ -589,6 +589,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
+  bool _finished = false;
   String _status = 'Открываем страницу авторизации...';
 
   bool get _isMobile =>
@@ -659,6 +660,8 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   }
 
   Future<void> _exchangeCode() async {
+    if (_isSubmitting || _finished) return;
+
     final input = _codeController.text.trim();
     final code = _extractCode(input);
     if (code.isEmpty) {
@@ -684,6 +687,19 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       _status = 'Обмениваем код на токен...';
     });
 
+    final watchdog = Timer(const Duration(seconds: 25), () {
+      if (!mounted || _finished) return;
+      _finished = true;
+      Navigator.of(context).pushAndRemoveUntil(
+        const MaterialPageRoute(
+          builder: (_) => DocumentsScreen(
+            authBanner: 'Web Auth: Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)',
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    });
+
     try {
       final basicAuth = base64Encode(
         utf8.encode('${widget.clientId}:${widget.clientSecret}'),
@@ -707,6 +723,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
+        _finished = true;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => const DocumentsScreen(
@@ -716,6 +733,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
           (route) => route.isFirst,
         );
       } else {
+        _finished = true;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => DocumentsScreen(
@@ -728,6 +746,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      _finished = true;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => DocumentsScreen(
@@ -737,6 +756,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
         (route) => route.isFirst,
       );
     } finally {
+      watchdog.cancel();
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
