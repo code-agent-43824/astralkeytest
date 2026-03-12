@@ -589,6 +589,12 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
+  String _status = 'Открываем страницу авторизации...';
+
+  bool get _isMobile =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   static String _randomToken() {
     final random = Random.secure();
@@ -612,9 +618,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS)) {
+    if (_isMobile) {
       _sub = _appLinks.uriLinkStream.listen((uri) {
         final text = uri.toString();
         if (text.startsWith('${widget.redirectUri.split('?').first}')) {
@@ -636,9 +640,12 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   Future<void> _openAuth() async {
     final ok = await launchUrl(_authUri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
+      setState(() => _status = 'Не удалось открыть браузер');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Не удалось открыть браузер')),
       );
+    } else if (mounted) {
+      setState(() => _status = 'Ожидаем callback после входа...');
     }
   }
 
@@ -672,25 +679,30 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       }
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _status = 'Обмениваем код на токен...';
+    });
 
     try {
       final basicAuth = base64Encode(
         utf8.encode('${widget.clientId}:${widget.clientSecret}'),
       );
 
-      final response = await http.post(
-        Uri.parse(_tokenEndpoint),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic $basicAuth',
-        },
-        body: {
-          'grant_type': 'authorization_code',
-          'code': code,
-          'redirect_uri': widget.redirectUri,
-        },
-      );
+      final response = await http
+          .post(
+            Uri.parse(_tokenEndpoint),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': 'Basic $basicAuth',
+            },
+            body: {
+              'grant_type': 'authorization_code',
+              'code': code,
+              'redirect_uri': widget.redirectUri,
+            },
+          )
+          .timeout(const Duration(seconds: 20));
 
       if (!mounted) return;
 
@@ -741,35 +753,41 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  '1) Нажми кнопку ниже и войди в браузере.\n2) Скопируй параметр code из адресной строки redirect (или весь redirect URL).\n3) Вставь сюда и нажми Обменять код.',
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _openAuth,
-                  child: const Text('Открыть Web Auth в браузере'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _codeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Code или полный redirect URL',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _isSubmitting ? null : _exchangeCode,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Обменять код'),
-                ),
-              ],
+              children: _isMobile
+                  ? [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(_status, textAlign: TextAlign.center),
+                    ]
+                  : [
+                      const Text(
+                        '1) Нажми кнопку ниже и войди в браузере.\n2) Скопируй параметр code из адресной строки redirect (или весь redirect URL).\n3) Вставь сюда и нажми Обменять код.',
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _openAuth,
+                        child: const Text('Открыть Web Auth в браузере'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _codeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Code или полный redirect URL',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _isSubmitting ? null : _exchangeCode,
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Обменять код'),
+                      ),
+                    ],
             ),
           ),
         ),
