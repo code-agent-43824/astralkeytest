@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:astralkeytest/src/core/app_version.dart';
@@ -541,6 +542,7 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
 
     try {
       debugPrint('WEB_AUTH_FLOW_STARTED');
+      dev.log('WEB_AUTH_FLOW_STARTED', name: 'WEB_AUTH');
       setState(() => _status = 'Открываем системный экран аутентификации...');
 
       final result = await _appAuth.authorizeAndExchangeCode(
@@ -594,9 +596,10 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   }
 
   void _finish(AuthResultData result) {
-    debugPrint(
-      'WEB_AUTH_RESULT ok=${result.ok} code=${result.errorCode ?? 'NONE'} message=${result.message}',
-    );
+    final marker =
+        'WEB_AUTH_RESULT ok=${result.ok} code=${result.errorCode ?? 'NONE'} message=${result.message}';
+    debugPrint(marker);
+    dev.log(marker, name: 'WEB_AUTH');
     if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
