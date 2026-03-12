@@ -62,15 +62,6 @@ jobs:
             grep "WEB_AUTH_" /tmp/logcat.txt || true
             echo "--- WEB_AUTH markers (filtered logs) ---"
             grep "WEB_AUTH_" /tmp/logcat_filtered.txt || true
-            if ! (grep -q "WEB_AUTH_FLOW_STARTED" /tmp/logcat.txt || grep -q "WEB_AUTH_FLOW_STARTED" /tmp/logcat_filtered.txt); then
-              echo "Missing WEB_AUTH_FLOW_STARTED marker"
-              exit 1
-            fi
-            if ! (grep -q "WEB_AUTH_RESULT" /tmp/logcat.txt || grep -q "WEB_AUTH_RESULT" /tmp/logcat_filtered.txt); then
-              echo "Missing WEB_AUTH_RESULT marker"
-              exit 1
-            fi
-            if grep -qi "user cancelled" /tmp/logcat.txt; then
-              echo "Unexpected: user cancelled flow"
-              exit 1
-            fi
+            grep -q "WEB_AUTH_FLOW_STARTED" /tmp/logcat.txt || grep -q "WEB_AUTH_FLOW_STARTED" /tmp/logcat_filtered.txt || { echo "Missing WEB_AUTH_FLOW_STARTED marker"; exit 1; }
+            grep -q "WEB_AUTH_RESULT" /tmp/logcat.txt || grep -q "WEB_AUTH_RESULT" /tmp/logcat_filtered.txt || { echo "Missing WEB_AUTH_RESULT marker"; exit 1; }
+            ! grep -qi "user cancelled" /tmp/logcat.txt || { echo "Unexpected: user cancelled flow"; exit 1; }
