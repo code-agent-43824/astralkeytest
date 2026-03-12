@@ -718,7 +718,10 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
               'redirect_uri': widget.redirectUri,
             },
           )
-          .timeout(const Duration(seconds: 20));
+          .timeout(
+            const Duration(seconds: 12),
+            onTimeout: () => http.Response('TOKEN_EXCHANGE_TIMEOUT', 598),
+          );
 
       if (!mounted) return;
 
@@ -738,7 +741,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
           MaterialPageRoute(
             builder: (_) => DocumentsScreen(
               authBanner:
-                  'Web Auth: Ошибка обмена кода (HTTP_${response.statusCode})',
+                  'Web Auth: Ошибка обмена кода (HTTP_${response.statusCode}) ${response.body.isNotEmpty ? response.body : ''}',
             ),
           ),
           (route) => route.isFirst,
