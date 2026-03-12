@@ -31,7 +31,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>astralkeytest</string>
+				<string>astralkey</string>
 			</array>
 		</dict>
 	</array>

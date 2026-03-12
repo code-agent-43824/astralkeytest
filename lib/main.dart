@@ -470,9 +470,9 @@ class WebAuthScreen extends StatefulWidget {
 class _WebAuthScreenState extends State<WebAuthScreen> {
   static const _discoveryUrl =
       'https://identity.demo.astral-dev.ru/.well-known/openid-configuration';
-  static const _clientId = String.fromEnvironment('ASTRAL_OIDC_CLIENT_ID');
-  static const _redirectUri =
-      String.fromEnvironment('ASTRAL_OIDC_REDIRECT_URI', defaultValue: 'astralkeytest://oauth/callback');
+  static const _clientId = 'astral_key';
+  static const _clientSecret = 'JAskxk427kP5Hj21';
+  static const _redirectUri = 'astralkey://oauth.callback';
 
   final FlutterAppAuth _appAuth = const FlutterAppAuth();
   String _status = 'Подготовка Web Auth...';
@@ -484,18 +484,6 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   }
 
   Future<void> _runAuth() async {
-    if (_clientId.isEmpty) {
-      _finish(
-        const AuthResultData(
-          flow: 'Web Auth',
-          ok: false,
-          message: 'Не задан ASTRAL_OIDC_CLIENT_ID',
-          errorCode: 'CLIENT_NOT_CONFIGURED',
-        ),
-      );
-      return;
-    }
-
     try {
       setState(() => _status = 'Открываем системный экран аутентификации...');
 
@@ -504,7 +492,8 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
           _clientId,
           _redirectUri,
           discoveryUrl: _discoveryUrl,
-          scopes: const ['openid', 'profile', 'email'],
+          clientSecret: _clientSecret,
+          scopes: const ['openid', 'profile', 'email', 'epd'],
           promptValues: const ['login'],
         ),
       );

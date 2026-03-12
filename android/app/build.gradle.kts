@@ -28,7 +28,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["appAuthRedirectScheme"] = "astralkeytest"
+        manifestPlaceholders["appAuthRedirectScheme"] = "astralkey"
     }
 
     buildTypes {
