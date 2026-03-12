@@ -723,7 +723,11 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
             onTimeout: () => http.Response('TOKEN_EXCHANGE_TIMEOUT', 598),
           );
 
-      if (!mounted) return;
+      if (mounted) {
+        setState(() {
+          _status = 'Ответ token endpoint: HTTP_${response.statusCode}';
+        });
+      }
 
       if (response.statusCode == 200) {
         _finished = true;
@@ -748,16 +752,22 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (mounted) {
+        setState(() {
+          _status = 'Ошибка обмена: $e';
+        });
+      }
       _finished = true;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => DocumentsScreen(
-            authBanner: 'Web Auth: Сетевая ошибка ($e)',
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => DocumentsScreen(
+              authBanner: 'Web Auth: Сетевая ошибка ($e)',
+            ),
           ),
-        ),
-        (route) => route.isFirst,
-      );
+          (route) => route.isFirst,
+        );
+      }
     } finally {
       watchdog.cancel();
       if (mounted) setState(() => _isSubmitting = false);
@@ -778,9 +788,18 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: _isMobile
                   ? [
-                      const CircularProgressIndicator(),
+                      if (_isSubmitting)
+                        const CircularProgressIndicator()
+                      else
+                        const Icon(Icons.info_outline, size: 36),
                       const SizedBox(height: 16),
                       Text(_status, textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      if (!_isSubmitting && !_finished && _codeController.text.isNotEmpty)
+                        FilledButton(
+                          onPressed: _exchangeCode,
+                          child: const Text('Повторить обмен'),
+                        ),
                     ]
                   : [
                       const Text(
