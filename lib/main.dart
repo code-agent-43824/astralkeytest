@@ -551,8 +551,7 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
           _redirectUri,
           discoveryUrl: _discoveryUrl,
           clientSecret: _clientSecret,
-          scopes: const ['openid', 'profile', 'email', 'epd'],
-          promptValues: const ['login'],
+          scopes: const ['openid'],
         ),
       );
 
