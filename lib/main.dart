@@ -586,12 +586,34 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   }
 
   Future<void> _navigateToDocuments(String banner) async {
-    for (var attempt = 0; attempt < 5; attempt++) {
+    const retryDelay = Duration(milliseconds: 50);
+    const maxWait = Duration(seconds: 6);
+    final deadline = DateTime.now().add(maxWait);
+    var attempt = 0;
+
+    while (DateTime.now().isBefore(deadline)) {
+      attempt++;
+      if (!mounted) return;
+
+      final lifecycleState = WidgetsBinding.instance.lifecycleState;
+      final isResumed = lifecycleState == null ||
+          lifecycleState == AppLifecycleState.resumed;
+      if (!isResumed) {
+        await Future<void>.delayed(retryDelay);
+        continue;
+      }
+
+      final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? true;
+      if (!isCurrentRoute) {
+        await Future<void>.delayed(retryDelay);
+        continue;
+      }
+
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
 
       try {
-        Navigator.of(context).pushAndRemoveUntil(
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => DocumentsScreen(authBanner: banner),
           ),
@@ -602,21 +624,24 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
         return;
       } catch (e) {
         final isNavigatorLocked = e.toString().contains('!_debugLocked');
-        if (!isNavigatorLocked || attempt == 4) {
-          dev.log('WEB_AUTH_NAV_ERROR: $e', name: 'WEB_AUTH');
-          if (mounted) {
-            setState(() {
-              _status =
-                  'Навигация после авторизации не удалась, повтори попытку.';
-            });
-          }
-          _navigating = false;
-          return;
+        dev.log(
+          'WEB_AUTH_NAV_RETRY attempt=$attempt locked=$isNavigatorLocked error=$e',
+          name: 'WEB_AUTH',
+        );
+        if (!isNavigatorLocked) {
+          break;
         }
-
-        await Future<void>.delayed(const Duration(milliseconds: 16));
+        await Future<void>.delayed(retryDelay);
       }
     }
+
+    dev.log('WEB_AUTH_NAV_GIVE_UP', name: 'WEB_AUTH');
+    if (mounted) {
+      setState(() {
+        _status = 'Навигация после авторизации не удалась, повтори попытку.';
+      });
+    }
+    _navigating = false;
   }
 
   static const _authorizeEndpoint =
