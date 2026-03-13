@@ -581,8 +581,29 @@ class MobileWebAuthScreen extends StatefulWidget {
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner) {
     if (_finished || _navigating) return;
+    _finished = true;
     _navigating = true;
+    _successBanner = banner;
     unawaited(_navigateToDocuments(banner));
+  }
+
+  void _openDocumentsManually() {
+    final banner = _successBanner ?? 'Web Auth: Авторизация успешна';
+    try {
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => DocumentsScreen(authBanner: banner),
+        ),
+        (route) => route.isFirst,
+      );
+    } catch (e) {
+      dev.log('WEB_AUTH_MANUAL_NAV_ERROR: $e', name: 'WEB_AUTH');
+      if (mounted) {
+        setState(() {
+          _status = 'Переход к документам не удался, повтори ещё раз.';
+        });
+      }
+    }
   }
 
   Future<void> _navigateToDocuments(String banner) async {
@@ -656,6 +677,8 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   bool _isSubmitting = false;
   bool _finished = false;
   bool _navigating = false;
+  String? _lastRedirectUri;
+  String? _successBanner;
   String _status = 'Открываем страницу авторизации...';
 
   bool get _isMobile =>
@@ -688,9 +711,14 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   }
 
   void _handleRedirectUri(Uri uri) {
-    if (!_isRedirectUri(uri) || _finished) return;
-    _codeController.text = uri.toString();
-    _exchangeCode();
+    if (!_isRedirectUri(uri) || _finished || _navigating || _isSubmitting) return;
+
+    final raw = uri.toString();
+    if (_lastRedirectUri == raw) return;
+    _lastRedirectUri = raw;
+
+    _codeController.text = raw;
+    unawaited(_exchangeCode());
   }
 
   Future<void> _startMobileFlow() async {
@@ -705,7 +733,10 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
 
     if (initialUri != null && _isRedirectUri(initialUri)) {
       _handleRedirectUri(initialUri);
-      return;
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (_isSubmitting || _finished || _navigating) {
+        return;
+      }
     }
 
     await _openAuth();
@@ -762,7 +793,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   }
 
   Future<void> _exchangeCode() async {
-    if (_isSubmitting || _finished) return;
+    if (_isSubmitting || _finished || _navigating) return;
 
     final input = _codeController.text.trim();
     final code = _extractCode(input);
@@ -790,8 +821,10 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
     });
 
     final watchdog = Timer(const Duration(seconds: 25), () {
-      if (!mounted || _finished) return;
-      _finishFlow('Web Auth: Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)');
+      if (!mounted || _finished || _navigating) return;
+      setState(() {
+        _status = 'Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)';
+      });
     });
 
     try {
@@ -834,12 +867,16 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
 
       if (response.statusCode == 200 && hasAccessToken) {
         _finishFlow('Web Auth: Авторизация успешна');
-      } else if (response.statusCode == 200) {
-        _finishFlow('Web Auth: HTTP_200, но access_token не найден (TOKEN_MISSING)');
-      } else {
-        _finishFlow(
-          'Web Auth: Ошибка обмена кода (HTTP_${response.statusCode}) ${response.body.isNotEmpty ? response.body : ''}',
-        );
+      } else if (mounted && response.statusCode == 200) {
+        setState(() {
+          _status =
+              'Ответ token endpoint: HTTP_200, но access_token не найден (TOKEN_MISSING)';
+        });
+      } else if (mounted) {
+        setState(() {
+          _status =
+              'Ошибка обмена кода: HTTP_${response.statusCode}${response.body.isNotEmpty ? ', ${response.body}' : ''}';
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -847,7 +884,6 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
           _status = 'Ошибка обмена: $e';
         });
       }
-      _finishFlow('Web Auth: Сетевая ошибка ($e)');
     } finally {
       watchdog.cancel();
       if (mounted) setState(() => _isSubmitting = false);
@@ -868,17 +904,33 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: _isMobile
                   ? [
-                      if (_isSubmitting)
+                      if (_isSubmitting || _navigating)
                         const CircularProgressIndicator()
                       else
                         const Icon(Icons.info_outline, size: 36),
                       const SizedBox(height: 16),
                       Text(_status, textAlign: TextAlign.center),
                       const SizedBox(height: 12),
-                      if (!_isSubmitting && !_finished && _codeController.text.isNotEmpty)
-                        FilledButton(
-                          onPressed: _exchangeCode,
-                          child: const Text('Повторить обмен'),
+                      if (!_isSubmitting && !_navigating && !_finished)
+                        FilledButton.tonal(
+                          onPressed: _openAuth,
+                          child: const Text('Открыть авторизацию снова'),
+                        ),
+                      if (!_isSubmitting && !_navigating && !_finished && _codeController.text.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: FilledButton(
+                            onPressed: _exchangeCode,
+                            child: const Text('Повторить обмен'),
+                          ),
+                        ),
+                      if (_finished && !_navigating)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: FilledButton(
+                            onPressed: _openDocumentsManually,
+                            child: const Text('Перейти к документам'),
+                          ),
                         ),
                     ]
                   : [
