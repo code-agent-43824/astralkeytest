@@ -580,89 +580,13 @@ class MobileWebAuthScreen extends StatefulWidget {
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner) {
-    if (_finished || _navigating) return;
-    _finished = true;
-    _navigating = true;
-    _successBanner = banner;
-    unawaited(_navigateToDocuments(banner));
-  }
-
-  void _openDocumentsManually() {
-    final banner = _successBanner ?? 'Web Auth: Авторизация успешна';
-    try {
-      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => DocumentsScreen(authBanner: banner),
-        ),
-        (route) => route.isFirst,
-      );
-    } catch (e) {
-      dev.log('WEB_AUTH_MANUAL_NAV_ERROR: $e', name: 'WEB_AUTH');
-      if (mounted) {
-        setState(() {
-          _status = 'Переход к документам не удался, повтори ещё раз.';
-        });
-      }
-    }
-  }
-
-  Future<void> _navigateToDocuments(String banner) async {
-    const retryDelay = Duration(milliseconds: 50);
-    const maxWait = Duration(seconds: 6);
-    final deadline = DateTime.now().add(maxWait);
-    var attempt = 0;
-
-    while (DateTime.now().isBefore(deadline)) {
-      attempt++;
-      if (!mounted) return;
-
-      final lifecycleState = WidgetsBinding.instance.lifecycleState;
-      final isResumed = lifecycleState == null ||
-          lifecycleState == AppLifecycleState.resumed;
-      if (!isResumed) {
-        await Future<void>.delayed(retryDelay);
-        continue;
-      }
-
-      final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? true;
-      if (!isCurrentRoute) {
-        await Future<void>.delayed(retryDelay);
-        continue;
-      }
-
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-
-      try {
-        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => DocumentsScreen(authBanner: banner),
-          ),
-          (route) => route.isFirst,
-        );
-        _finished = true;
-        _navigating = false;
-        return;
-      } catch (e) {
-        final isNavigatorLocked = e.toString().contains('!_debugLocked');
-        dev.log(
-          'WEB_AUTH_NAV_RETRY attempt=$attempt locked=$isNavigatorLocked error=$e',
-          name: 'WEB_AUTH',
-        );
-        if (!isNavigatorLocked) {
-          break;
-        }
-        await Future<void>.delayed(retryDelay);
-      }
-    }
-
-    dev.log('WEB_AUTH_NAV_GIVE_UP', name: 'WEB_AUTH');
-    if (mounted) {
-      setState(() {
-        _status = 'Навигация после авторизации не удалась, повтори попытку.';
-      });
-    }
-    _navigating = false;
+    if (_finished || _showDocuments) return;
+    if (!mounted) return;
+    setState(() {
+      _finished = true;
+      _successBanner = banner;
+      _showDocuments = true;
+    });
   }
 
   static const _authorizeEndpoint =
@@ -676,7 +600,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
   bool _finished = false;
-  bool _navigating = false;
+  bool _showDocuments = false;
   String? _lastRedirectUri;
   String? _successBanner;
   String _status = 'Открываем страницу авторизации...';
@@ -711,7 +635,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   }
 
   void _handleRedirectUri(Uri uri) {
-    if (!_isRedirectUri(uri) || _finished || _navigating || _isSubmitting) return;
+    if (!_isRedirectUri(uri) || _finished || _isSubmitting) return;
 
     final raw = uri.toString();
     if (_lastRedirectUri == raw) return;
@@ -734,7 +658,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
     if (initialUri != null && _isRedirectUri(initialUri)) {
       _handleRedirectUri(initialUri);
       await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (_isSubmitting || _finished || _navigating) {
+      if (_isSubmitting || _finished || _showDocuments) {
         return;
       }
     }
@@ -793,7 +717,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   }
 
   Future<void> _exchangeCode() async {
-    if (_isSubmitting || _finished || _navigating) return;
+    if (_isSubmitting || _finished) return;
 
     final input = _codeController.text.trim();
     final code = _extractCode(input);
@@ -821,7 +745,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
     });
 
     final watchdog = Timer(const Duration(seconds: 25), () {
-      if (!mounted || _finished || _navigating) return;
+      if (!mounted || _finished) return;
       setState(() {
         _status = 'Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)';
       });
@@ -892,6 +816,10 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showDocuments) {
+      return DocumentsScreen(authBanner: _successBanner);
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Web Auth')),
       body: Center(
@@ -904,32 +832,24 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: _isMobile
                   ? [
-                      if (_isSubmitting || _navigating)
+                      if (_isSubmitting)
                         const CircularProgressIndicator()
                       else
                         const Icon(Icons.info_outline, size: 36),
                       const SizedBox(height: 16),
                       Text(_status, textAlign: TextAlign.center),
                       const SizedBox(height: 12),
-                      if (!_isSubmitting && !_navigating && !_finished)
+                      if (!_isSubmitting && !_finished)
                         FilledButton.tonal(
                           onPressed: _openAuth,
                           child: const Text('Открыть авторизацию снова'),
                         ),
-                      if (!_isSubmitting && !_navigating && !_finished && _codeController.text.isNotEmpty)
+                      if (!_isSubmitting && !_finished && _codeController.text.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: FilledButton(
                             onPressed: _exchangeCode,
                             child: const Text('Повторить обмен'),
-                          ),
-                        ),
-                      if (_finished && !_navigating)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: FilledButton(
-                            onPressed: _openDocumentsManually,
-                            child: const Text('Перейти к документам'),
                           ),
                         ),
                     ]
