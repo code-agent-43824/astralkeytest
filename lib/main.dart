@@ -580,20 +580,17 @@ class MobileWebAuthScreen extends StatefulWidget {
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner) {
-    if (_finished || _navigating) return;
-    _navigating = true;
+    if (_finished) return;
+    _finished = true;
     if (!mounted) return;
-    Future<void>.delayed(Duration.zero, () {
-      if (!mounted) return;
-      _finished = true;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => DocumentsScreen(authBanner: banner),
-        ),
-        (route) => route.isFirst,
-      );
-    });
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => DocumentsScreen(authBanner: banner),
+      ),
+    );
   }
+
   static const _authorizeEndpoint =
       'https://identity.demo.astral-dev.ru/connect/authorize';
   static const _tokenEndpoint =
@@ -605,7 +602,6 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
   bool _finished = false;
-  bool _navigating = false;
   String _status = 'Открываем страницу авторизации...';
 
   bool get _isMobile =>
@@ -632,18 +628,41 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
     );
   }
 
+  bool _isRedirectUri(Uri uri) {
+    final redirectBase = widget.redirectUri.split('?').first;
+    return uri.toString().startsWith(redirectBase);
+  }
+
+  void _handleRedirectUri(Uri uri) {
+    if (!_isRedirectUri(uri) || _finished) return;
+    _codeController.text = uri.toString();
+    _exchangeCode();
+  }
+
+  Future<void> _startMobileFlow() async {
+    Uri? initialUri;
+    try {
+      initialUri = await _appLinks.getInitialLink();
+    } on PlatformException catch (e) {
+      dev.log('WEB_AUTH_INITIAL_LINK_ERROR: ${e.code}', name: 'WEB_AUTH');
+    }
+
+    if (!mounted || _finished) return;
+
+    if (initialUri != null && _isRedirectUri(initialUri)) {
+      _handleRedirectUri(initialUri);
+      return;
+    }
+
+    await _openAuth();
+  }
+
   @override
   void initState() {
     super.initState();
     if (_isMobile) {
-      _sub = _appLinks.uriLinkStream.listen((uri) {
-        final text = uri.toString();
-        if (text.startsWith('${widget.redirectUri.split('?').first}')) {
-          _codeController.text = text;
-          _exchangeCode();
-        }
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openAuth());
+      _sub = _appLinks.uriLinkStream.listen(_handleRedirectUri);
+      unawaited(_startMobileFlow());
     }
   }
 
@@ -673,6 +692,19 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       return uri?.queryParameters['code']?.trim() ?? '';
     }
     return value;
+  }
+
+  bool _hasAccessToken(String rawBody) {
+    try {
+      final decoded = jsonDecode(rawBody);
+      if (decoded is Map<String, dynamic>) {
+        final token = decoded['access_token'];
+        return token is String && token.isNotEmpty;
+      }
+    } catch (_) {
+      // ignore invalid json bodies
+    }
+    return false;
   }
 
   Future<void> _exchangeCode() async {
@@ -731,14 +763,25 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
             onTimeout: () => http.Response('TOKEN_EXCHANGE_TIMEOUT', 598),
           );
 
+      final hasAccessToken = _hasAccessToken(response.body);
+      dev.log(
+        'WEB_AUTH_TOKEN_RESULT status=${response.statusCode} token=${hasAccessToken ? 'present' : 'missing'}',
+        name: 'WEB_AUTH',
+      );
+
       if (mounted) {
         setState(() {
-          _status = 'Ответ token endpoint: HTTP_${response.statusCode}';
+          final tokenSuffix = response.statusCode == 200
+              ? (hasAccessToken ? ', token получен' : ', token не найден')
+              : '';
+          _status = 'Ответ token endpoint: HTTP_${response.statusCode}$tokenSuffix';
         });
       }
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && hasAccessToken) {
         _finishFlow('Web Auth: Авторизация успешна');
+      } else if (response.statusCode == 200) {
+        _finishFlow('Web Auth: HTTP_200, но access_token не найден (TOKEN_MISSING)');
       } else {
         _finishFlow(
           'Web Auth: Ошибка обмена кода (HTTP_${response.statusCode}) ${response.body.isNotEmpty ? response.body : ''}',
