@@ -580,15 +580,43 @@ class MobileWebAuthScreen extends StatefulWidget {
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner) {
-    if (_finished) return;
-    _finished = true;
-    if (!mounted) return;
+    if (_finished || _navigating) return;
+    _navigating = true;
+    unawaited(_navigateToDocuments(banner));
+  }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => DocumentsScreen(authBanner: banner),
-      ),
-    );
+  Future<void> _navigateToDocuments(String banner) async {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+
+      try {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => DocumentsScreen(authBanner: banner),
+          ),
+          (route) => route.isFirst,
+        );
+        _finished = true;
+        _navigating = false;
+        return;
+      } catch (e) {
+        final isNavigatorLocked = e.toString().contains('!_debugLocked');
+        if (!isNavigatorLocked || attempt == 4) {
+          dev.log('WEB_AUTH_NAV_ERROR: $e', name: 'WEB_AUTH');
+          if (mounted) {
+            setState(() {
+              _status =
+                  'Навигация после авторизации не удалась, повтори попытку.';
+            });
+          }
+          _navigating = false;
+          return;
+        }
+
+        await Future<void>.delayed(const Duration(milliseconds: 16));
+      }
+    }
   }
 
   static const _authorizeEndpoint =
@@ -602,6 +630,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
   bool _finished = false;
+  bool _navigating = false;
   String _status = 'Открываем страницу авторизации...';
 
   bool get _isMobile =>
