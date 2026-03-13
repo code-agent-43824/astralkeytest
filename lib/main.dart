@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:local_auth/local_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() {
@@ -36,10 +37,38 @@ class AuthTokenVault {
   AuthTokenVault._();
 
   static const _tokenKey = 'auth_access_token';
+  static const _pinKey = 'auth_pin_code';
+  static const _biometricEnabledKey = 'auth_biometric_enabled';
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  static Future<void> save(String token) async {
+  static Future<void> saveToken(String token) async {
     await _storage.write(key: _tokenKey, value: token);
+  }
+
+  static Future<String?> readToken() async {
+    return _storage.read(key: _tokenKey);
+  }
+
+  static Future<void> savePin(String pin) async {
+    await _storage.write(key: _pinKey, value: pin);
+  }
+
+  static Future<String?> readPin() async {
+    return _storage.read(key: _pinKey);
+  }
+
+  static Future<bool> hasPin() async {
+    final pin = await readPin();
+    return pin != null && pin.length == 4;
+  }
+
+  static Future<void> setBiometricEnabled(bool enabled) async {
+    await _storage.write(key: _biometricEnabledKey, value: enabled ? '1' : '0');
+  }
+
+  static Future<bool> isBiometricEnabled() async {
+    final value = await _storage.read(key: _biometricEnabledKey);
+    return value == '1';
   }
 }
 
@@ -57,13 +86,28 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
   @override
   void initState() {
     super.initState();
+    unawaited(_bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    final token = await AuthTokenVault.readToken();
+    final hasPin = await AuthTokenVault.hasPin();
+
+    if (!mounted) return;
+
+    if (token != null && token.isNotEmpty && hasPin) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AppLockScreen(token: token),
+        ),
+      );
+      return;
+    }
+
     if (_autoOpenWebAuth) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const WebAuthScreen()),
-        );
-      });
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const WebAuthScreen()),
+      );
     }
   }
 
@@ -202,6 +246,519 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
   }
 }
 
+class PinSetupScreen extends StatefulWidget {
+  const PinSetupScreen({
+    super.key,
+    required this.token,
+    required this.allowBiometric,
+    this.authBanner,
+  });
+
+  final String token;
+  final bool allowBiometric;
+  final String? authBanner;
+
+  @override
+  State<PinSetupScreen> createState() => _PinSetupScreenState();
+}
+
+class _PinSetupScreenState extends State<PinSetupScreen> {
+  String _pin = '';
+  bool _saving = false;
+
+  void _onDigit(String digit) {
+    if (_saving || _pin.length >= 4) return;
+    final next = _pin + digit;
+    setState(() => _pin = next);
+    if (next.length == 4) {
+      unawaited(_complete(next));
+    }
+  }
+
+  void _onBackspace() {
+    if (_saving || _pin.isEmpty) return;
+    setState(() => _pin = _pin.substring(0, _pin.length - 1));
+  }
+
+  Future<bool> _askBiometricPermission() async {
+    final decision = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Биометрия'),
+          content: const Text('Разрешить вход по биометрии?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Нет'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Да'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return decision == true;
+  }
+
+  Future<void> _complete(String pin) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+
+    await AuthTokenVault.savePin(pin);
+
+    var useBiometric = false;
+    if (widget.allowBiometric) {
+      useBiometric = await _askBiometricPermission();
+    }
+    await AuthTokenVault.setBiometricEnabled(useBiometric);
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => AppLockScreen(
+          token: widget.token,
+          skipAuthOnce: true,
+          authBanner: widget.authBanner,
+        ),
+      ),
+    );
+  }
+
+  Widget _pinDot(int index) {
+    final filled = _pin.length > index;
+    return Container(
+      width: 14,
+      height: 14,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: filled ? Colors.blue : Colors.grey.shade300,
+      ),
+    );
+  }
+
+  Widget _digitButton(String digit) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: FilledButton(
+        onPressed: _saving ? null : () => _onDigit(digit),
+        style: FilledButton.styleFrom(
+          shape: const CircleBorder(),
+          backgroundColor: Colors.grey.shade100,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+        ),
+        child: Text(
+          digit,
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyCircle() {
+    return const SizedBox(width: 72, height: 72);
+  }
+
+  Widget _backspaceButton() {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: FilledButton(
+        onPressed: _saving ? null : _onBackspace,
+        style: FilledButton.styleFrom(
+          shape: const CircleBorder(),
+          backgroundColor: Colors.grey.shade100,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+        ),
+        child: const Icon(Icons.backspace_outlined),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Image.asset('assets/images/auth_logo.png', height: 110),
+                  const SizedBox(height: 12),
+                  Text(
+                    'АстралКлюч',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Создайте PIN-код (4 цифры)',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _pinDot(0),
+                      const SizedBox(width: 12),
+                      _pinDot(1),
+                      const SizedBox(width: 12),
+                      _pinDot(2),
+                      const SizedBox(width: 12),
+                      _pinDot(3),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [_digitButton('1'), _digitButton('2'), _digitButton('3')],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [_digitButton('4'), _digitButton('5'), _digitButton('6')],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [_digitButton('7'), _digitButton('8'), _digitButton('9')],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [_emptyCircle(), _digitButton('0'), _backspaceButton()],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Версия $kAppVersion',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AppLockScreen extends StatefulWidget {
+  const AppLockScreen({
+    super.key,
+    required this.token,
+    this.skipAuthOnce = false,
+    this.authBanner,
+  });
+
+  final String token;
+  final bool skipAuthOnce;
+  final String? authBanner;
+
+  @override
+  State<AppLockScreen> createState() => _AppLockScreenState();
+}
+
+class _AppLockScreenState extends State<AppLockScreen> {
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  String _pin = '';
+  String? _storedPin;
+  bool _ready = false;
+  bool _opening = false;
+  bool _biometricEnabled = false;
+  bool _biometricPrompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_init());
+  }
+
+  Future<void> _init() async {
+    final pin = await AuthTokenVault.readPin();
+    final useBiometric = !kIsWeb &&
+        defaultTargetPlatform != TargetPlatform.windows &&
+        await AuthTokenVault.isBiometricEnabled();
+
+    if (!mounted) return;
+
+    setState(() {
+      _storedPin = pin;
+      _ready = true;
+      _biometricEnabled = useBiometric;
+    });
+
+    if (widget.skipAuthOnce) {
+      _openDocuments();
+      return;
+    }
+
+    if (_biometricEnabled) {
+      unawaited(_tryBiometric());
+    }
+  }
+
+  Future<void> _tryBiometric() async {
+    if (_opening || !_biometricEnabled || _biometricPrompted) return;
+    _biometricPrompted = true;
+
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final supported = await _localAuth.isDeviceSupported();
+      if (!canCheck && !supported) return;
+
+      final ok = await _localAuth.authenticate(
+        localizedReason: 'Подтвердите вход в АстралКлюч',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+          useErrorDialogs: true,
+        ),
+      );
+
+      if (ok && mounted) {
+        _openDocuments();
+      }
+    } catch (_) {
+      // ignore biometric errors, PIN fallback remains available
+    }
+  }
+
+  void _openDocuments() {
+    if (_opening || !mounted) return;
+    _opening = true;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DocumentsScreen(
+          authToken: widget.token,
+          authBanner: widget.authBanner,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(() {
+          _pin = '';
+        });
+        _opening = false;
+        if (_biometricEnabled) {
+          _biometricPrompted = false;
+          unawaited(_tryBiometric());
+        }
+      }
+    });
+  }
+
+  void _onDigit(String digit) {
+    if (!_ready || _opening || _pin.length >= 4) return;
+
+    final next = _pin + digit;
+    setState(() => _pin = next);
+
+    if (next.length == 4) {
+      if (_storedPin != null && next == _storedPin) {
+        _openDocuments();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Неверный PIN-код')),
+        );
+        setState(() => _pin = '');
+      }
+    }
+  }
+
+  void _onBackspace() {
+    if (_opening || _pin.isEmpty) return;
+    setState(() => _pin = _pin.substring(0, _pin.length - 1));
+  }
+
+  Widget _pinDot(int index) {
+    final filled = _pin.length > index;
+    return Container(
+      width: 14,
+      height: 14,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: filled ? Colors.blue : Colors.grey.shade300,
+      ),
+    );
+  }
+
+  Widget _digitButton(String digit) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: FilledButton(
+        onPressed: _opening ? null : () => _onDigit(digit),
+        style: FilledButton.styleFrom(
+          shape: const CircleBorder(),
+          backgroundColor: Colors.grey.shade100,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+        ),
+        child: Text(
+          digit,
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyCircle() {
+    return const SizedBox(width: 72, height: 72);
+  }
+
+  Widget _backspaceButton() {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: FilledButton(
+        onPressed: _opening ? null : _onBackspace,
+        style: FilledButton.styleFrom(
+          shape: const CircleBorder(),
+          backgroundColor: Colors.grey.shade100,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+        ),
+        child: const Icon(Icons.backspace_outlined),
+      ),
+    );
+  }
+
+  Widget _biometricButton() {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: FilledButton(
+        onPressed: _opening ? null : () => unawaited(_tryBiometric()),
+        style: FilledButton.styleFrom(
+          shape: const CircleBorder(),
+          backgroundColor: Colors.grey.shade100,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+        ),
+        child: const Icon(Icons.fingerprint),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Image.asset('assets/images/auth_logo.png', height: 110),
+                  const SizedBox(height: 12),
+                  Text(
+                    'АстралКлюч',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Введите PIN-код',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _pinDot(0),
+                      const SizedBox(width: 12),
+                      _pinDot(1),
+                      const SizedBox(width: 12),
+                      _pinDot(2),
+                      const SizedBox(width: 12),
+                      _pinDot(3),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [_digitButton('1'), _digitButton('2'), _digitButton('3')],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [_digitButton('4'), _digitButton('5'), _digitButton('6')],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [_digitButton('7'), _digitButton('8'), _digitButton('9')],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _biometricEnabled ? _biometricButton() : _emptyCircle(),
+                      _digitButton('0'),
+                      _backspaceButton(),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Версия $kAppVersion',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class WebAuthScreen extends StatefulWidget {
   const WebAuthScreen({super.key});
 
@@ -325,15 +882,25 @@ class _WindowsTokenAuthScreenState extends State<WindowsTokenAuthScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      await AuthTokenVault.save(token);
+      await AuthTokenVault.saveToken(token);
+      final hasPin = await AuthTokenVault.hasPin();
+
       if (!mounted) return;
+
+      final nextScreen = hasPin
+          ? AppLockScreen(
+              token: token,
+              skipAuthOnce: true,
+              authBanner: 'Windows Token Auth: Авторизация успешна',
+            )
+          : PinSetupScreen(
+              token: token,
+              allowBiometric: false,
+              authBanner: 'Windows Token Auth: Авторизация успешна',
+            );
+
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => DocumentsScreen(
-            authBanner: 'Windows Token Auth: Авторизация успешна',
-            authToken: token,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => nextScreen),
         (route) => route.isFirst,
       );
     } catch (e) {
@@ -413,13 +980,13 @@ class MobileWebAuthScreen extends StatefulWidget {
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner, String token) {
-    if (_finished || _showDocuments) return;
+    if (_finished || _showLockScreen || _showPinSetup) return;
     if (!mounted) return;
     setState(() {
       _finished = true;
       _successBanner = banner;
       _authToken = token;
-      _showDocuments = true;
+      _showLockScreen = true;
     });
   }
 
@@ -434,7 +1001,8 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   StreamSubscription<Uri>? _sub;
   bool _isSubmitting = false;
   bool _finished = false;
-  bool _showDocuments = false;
+  bool _showPinSetup = false;
+  bool _showLockScreen = false;
   String? _lastRedirectUri;
   String? _successBanner;
   String? _authToken;
@@ -493,7 +1061,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
     if (initialUri != null && _isRedirectUri(initialUri)) {
       _handleRedirectUri(initialUri);
       await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (_isSubmitting || _finished || _showDocuments) {
+      if (_isSubmitting || _finished || _showLockScreen || _showPinSetup) {
         return;
       }
     }
@@ -628,8 +1196,21 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       }
 
       if (response.statusCode == 200 && hasAccessToken) {
-        await AuthTokenVault.save(accessToken!);
-        _finishFlow('Web Auth: Авторизация успешна', accessToken);
+        await AuthTokenVault.saveToken(accessToken!);
+        final hasPin = await AuthTokenVault.hasPin();
+
+        if (!mounted) return;
+
+        if (hasPin) {
+          _finishFlow('Web Auth: Авторизация успешна', accessToken);
+        } else {
+          setState(() {
+            _finished = true;
+            _successBanner = 'Web Auth: Авторизация успешна';
+            _authToken = accessToken;
+            _showPinSetup = true;
+          });
+        }
       } else if (mounted && response.statusCode == 200) {
         setState(() {
           _status =
@@ -655,10 +1236,19 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_showDocuments) {
-      return DocumentsScreen(
+    if (_showPinSetup && _authToken != null) {
+      return PinSetupScreen(
+        token: _authToken!,
+        allowBiometric: true,
         authBanner: _successBanner,
-        authToken: _authToken,
+      );
+    }
+
+    if (_showLockScreen && _authToken != null) {
+      return AppLockScreen(
+        token: _authToken!,
+        skipAuthOnce: true,
+        authBanner: _successBanner,
       );
     }
 
@@ -773,40 +1363,49 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 preferredSize: const Size.fromHeight(44),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Token: ${widget.authToken}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(color: Colors.white70),
-                        ),
-                      ),
-                      Text(
-                        'Скопировать токен →',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: Colors.white70),
-                      ),
-                      IconButton(
-                        tooltip: 'Копировать токен',
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(text: widget.authToken!),
-                          );
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Токен скопирован')),
-                          );
-                        },
-                        icon: const Icon(Icons.copy_rounded, size: 18),
-                      ),
-                    ],
+                  child: Builder(
+                    builder: (context) {
+                      final appBarForeground =
+                          Theme.of(context).appBarTheme.foregroundColor ??
+                              Theme.of(context).colorScheme.onSurface;
+
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Token: ${widget.authToken}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(color: appBarForeground),
+                            ),
+                          ),
+                          Text(
+                            'Скопировать токен →',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: appBarForeground),
+                          ),
+                          IconButton(
+                            tooltip: 'Копировать токен',
+                            color: appBarForeground,
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                ClipboardData(text: widget.authToken!),
+                              );
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Токен скопирован')),
+                              );
+                            },
+                            icon: const Icon(Icons.copy_rounded, size: 18),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
