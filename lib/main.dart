@@ -264,15 +264,41 @@ class PinSetupScreen extends StatefulWidget {
 
 class _PinSetupScreenState extends State<PinSetupScreen> {
   String _pin = '';
+  String? _firstPin;
   bool _saving = false;
+
+  bool get _isConfirmStep => _firstPin != null;
 
   void _onDigit(String digit) {
     if (_saving || _pin.length >= 4) return;
     final next = _pin + digit;
     setState(() => _pin = next);
     if (next.length == 4) {
-      unawaited(_complete(next));
+      unawaited(_onPinEntered(next));
     }
+  }
+
+  Future<void> _onPinEntered(String pin) async {
+    if (!_isConfirmStep) {
+      setState(() {
+        _firstPin = pin;
+        _pin = '';
+      });
+      return;
+    }
+
+    if (_firstPin != pin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN-коды не совпадают')),
+      );
+      setState(() {
+        _firstPin = null;
+        _pin = '';
+      });
+      return;
+    }
+
+    await _complete(pin);
   }
 
   void _onBackspace() {
@@ -406,7 +432,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Создайте PIN-код (4 цифры)',
+                    _isConfirmStep
+                        ? 'Повторите PIN-код'
+                        : 'Введите новый PIN-код',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -490,6 +518,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
   bool _opening = false;
   bool _biometricEnabled = false;
   bool _biometricPrompted = false;
+  bool _canEnterPin = false;
+  bool _biometricSuccessAnimating = false;
 
   @override
   void initState() {
@@ -509,6 +539,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
       _storedPin = pin;
       _ready = true;
       _biometricEnabled = useBiometric;
+      _canEnterPin = !useBiometric;
     });
 
     if (widget.skipAuthOnce) {
@@ -528,7 +559,10 @@ class _AppLockScreenState extends State<AppLockScreen> {
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
       final supported = await _localAuth.isDeviceSupported();
-      if (!canCheck && !supported) return;
+      if (!canCheck && !supported) {
+        if (mounted) setState(() => _canEnterPin = true);
+        return;
+      }
 
       final ok = await _localAuth.authenticate(
         localizedReason: 'Подтвердите вход в АстралКлюч',
@@ -540,11 +574,33 @@ class _AppLockScreenState extends State<AppLockScreen> {
       );
 
       if (ok && mounted) {
+        await _animatePinFill();
         _openDocuments();
+        return;
       }
     } catch (_) {
       // ignore biometric errors, PIN fallback remains available
     }
+
+    if (mounted) {
+      setState(() => _canEnterPin = true);
+    }
+  }
+
+  Future<void> _animatePinFill() async {
+    if (_biometricSuccessAnimating || !mounted) return;
+    setState(() {
+      _biometricSuccessAnimating = true;
+      _pin = '';
+    });
+
+    for (var i = 1; i <= 4; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 90));
+      if (!mounted) return;
+      setState(() => _pin = List.filled(i, '•').join());
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 120));
   }
 
   void _openDocuments() {
@@ -562,6 +618,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
       if (mounted) {
         setState(() {
           _pin = '';
+          _biometricSuccessAnimating = false;
+          _canEnterPin = !_biometricEnabled;
         });
         _opening = false;
         if (_biometricEnabled) {
@@ -573,7 +631,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
   }
 
   void _onDigit(String digit) {
-    if (!_ready || _opening || _pin.length >= 4) return;
+    if (!_ready || _opening || !_canEnterPin || _pin.length >= 4) return;
 
     final next = _pin + digit;
     setState(() => _pin = next);
@@ -591,7 +649,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
   }
 
   void _onBackspace() {
-    if (_opening || _pin.isEmpty) return;
+    if (_opening || !_canEnterPin || _pin.isEmpty) return;
     setState(() => _pin = _pin.substring(0, _pin.length - 1));
   }
 
@@ -612,7 +670,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
       width: 72,
       height: 72,
       child: FilledButton(
-        onPressed: _opening ? null : () => _onDigit(digit),
+        onPressed: (_opening || !_canEnterPin) ? null : () => _onDigit(digit),
         style: FilledButton.styleFrom(
           shape: const CircleBorder(),
           backgroundColor: Colors.grey.shade100,
@@ -636,7 +694,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
       width: 72,
       height: 72,
       child: FilledButton(
-        onPressed: _opening ? null : _onBackspace,
+        onPressed: (_opening || !_canEnterPin) ? null : _onBackspace,
         style: FilledButton.styleFrom(
           shape: const CircleBorder(),
           backgroundColor: Colors.grey.shade100,
@@ -695,7 +753,9 @@ class _AppLockScreenState extends State<AppLockScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Введите PIN-код',
+                    _canEnterPin
+                        ? 'Введите PIN-код'
+                        : 'Подтвердите вход по биометрии',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
