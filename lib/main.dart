@@ -311,8 +311,10 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Биометрия'),
-          content: const Text('Разрешить вход по биометрии?'),
+          title: const Text('Включить биометрию?'),
+          content: const Text(
+            'Сохранить токен и PIN в защищённом хранилище и входить по биометрии?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -334,25 +336,32 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     if (_saving) return;
     setState(() => _saving = true);
 
-    await AuthTokenVault.savePin(pin);
+    try {
+      await AuthTokenVault.savePin(pin);
 
-    var useBiometric = false;
-    if (widget.allowBiometric) {
-      useBiometric = await _askBiometricPermission();
-    }
-    await AuthTokenVault.setBiometricEnabled(useBiometric);
+      var useBiometric = false;
+      if (widget.allowBiometric) {
+        useBiometric = await _askBiometricPermission();
+      }
+      await AuthTokenVault.setBiometricEnabled(useBiometric);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => AppLockScreen(
-          token: widget.token,
-          skipAuthOnce: true,
-          authBanner: widget.authBanner,
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => DocumentsScreen(
+            authToken: widget.token,
+            authBanner: widget.authBanner,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось завершить настройку PIN: $e')),
+      );
+      setState(() => _saving = false);
+    }
   }
 
   Widget _pinDot(int index) {
