@@ -265,12 +265,14 @@ class PinSetupScreen extends StatefulWidget {
 class _PinSetupScreenState extends State<PinSetupScreen> {
   String _pin = '';
   String? _firstPin;
+  String? _confirmedPin;
+  bool _awaitingBiometricChoice = false;
   bool _saving = false;
 
   bool get _isConfirmStep => _firstPin != null;
 
   void _onDigit(String digit) {
-    if (_saving || _pin.length >= 4) return;
+    if (_saving || _awaitingBiometricChoice || _pin.length >= 4) return;
     final next = _pin + digit;
     setState(() => _pin = next);
     if (next.length == 4) {
@@ -293,73 +295,43 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       ).showSnackBar(const SnackBar(content: Text('PIN-коды не совпадают')));
       setState(() {
         _firstPin = null;
+        _confirmedPin = null;
+        _awaitingBiometricChoice = false;
         _pin = '';
       });
       return;
     }
 
-    await _complete(pin);
+    if (widget.allowBiometric) {
+      setState(() {
+        _awaitingBiometricChoice = true;
+        _confirmedPin = pin;
+        _pin = '';
+      });
+      return;
+    }
+
+    await _complete(pin, useBiometric: false);
   }
 
   void _onBackspace() {
-    if (_saving || _pin.isEmpty) return;
+    if (_saving || _awaitingBiometricChoice || _pin.isEmpty) return;
     setState(() => _pin = _pin.substring(0, _pin.length - 1));
   }
 
-  Future<bool> _askBiometricPermission() async {
-    if (!mounted) return false;
-
-    // Даём Navigator завершить текущий цикл после ввода PIN,
-    // чтобы showDialog не попадал в assert !_debugLocked.
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return false;
-
-    try {
-      final decision = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Включить биометрию?'),
-            content: const Text(
-              'Сохранить токен и PIN в защищённом хранилище и входить по биометрии?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Нет'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Да'),
-              ),
-            ],
-          );
-        },
-      );
-
-      return decision == true;
-    } catch (e, st) {
-      dev.log(
-        'PIN_SETUP_BIOMETRIC_DIALOG_FAILED: $e',
-        name: 'AUTH',
-        stackTrace: st,
-      );
-      return false;
-    }
+  void _onBiometricChoice(bool enabled) {
+    if (_saving) return;
+    final pin = _confirmedPin;
+    if (pin == null) return;
+    unawaited(_complete(pin, useBiometric: enabled));
   }
 
-  Future<void> _complete(String pin) async {
+  Future<void> _complete(String pin, {required bool useBiometric}) async {
     if (_saving) return;
     setState(() => _saving = true);
 
     try {
       await AuthTokenVault.savePin(pin);
-
-      var useBiometric = false;
-      if (widget.allowBiometric) {
-        useBiometric = await _askBiometricPermission();
-      }
       await AuthTokenVault.setBiometricEnabled(useBiometric);
 
       if (!mounted) return;
@@ -488,62 +460,87 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    _isConfirmStep
+                    _awaitingBiometricChoice
+                        ? 'Включить вход по биометрии?'
+                        : _isConfirmStep
                         ? 'Повторите PIN-код'
                         : 'Введите новый PIN-код',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _pinDot(0),
-                      const SizedBox(width: 12),
-                      _pinDot(1),
-                      const SizedBox(width: 12),
-                      _pinDot(2),
-                      const SizedBox(width: 12),
-                      _pinDot(3),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _digitButton('1'),
-                      _digitButton('2'),
-                      _digitButton('3'),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _digitButton('4'),
-                      _digitButton('5'),
-                      _digitButton('6'),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _digitButton('7'),
-                      _digitButton('8'),
-                      _digitButton('9'),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _emptyCircle(),
-                      _digitButton('0'),
-                      _backspaceButton(),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  if (_awaitingBiometricChoice) ...[
+                    Text(
+                      'PIN уже сохранён. Выберите, использовать ли биометрию для последующих входов.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _saving
+                          ? null
+                          : () => _onBiometricChoice(true),
+                      child: const Text('Да, включить биометрию'),
+                    ),
+                    const SizedBox(height: 10),
+                    FilledButton.tonal(
+                      onPressed: _saving
+                          ? null
+                          : () => _onBiometricChoice(false),
+                      child: const Text('Нет, оставить только PIN'),
+                    ),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _pinDot(0),
+                        const SizedBox(width: 12),
+                        _pinDot(1),
+                        const SizedBox(width: 12),
+                        _pinDot(2),
+                        const SizedBox(width: 12),
+                        _pinDot(3),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _digitButton('1'),
+                        _digitButton('2'),
+                        _digitButton('3'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _digitButton('4'),
+                        _digitButton('5'),
+                        _digitButton('6'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _digitButton('7'),
+                        _digitButton('8'),
+                        _digitButton('9'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _emptyCircle(),
+                        _digitButton('0'),
+                        _backspaceButton(),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Container(
                     padding: const EdgeInsets.symmetric(
                       vertical: 8,
