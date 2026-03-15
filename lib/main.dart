@@ -347,14 +347,20 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
       if (!mounted) return;
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => DocumentsScreen(
-            authToken: widget.token,
-            authBanner: widget.authBanner,
+      // После закрытия диалога подтверждения биометрии Navigator ещё может быть
+      // временно "залочен" в debug-режиме (assert !_debugLocked).
+      // Планируем переход на следующий frame, чтобы избежать re-entrant navigation.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => DocumentsScreen(
+              authToken: widget.token,
+              authBanner: widget.authBanner,
+            ),
           ),
-        ),
-      );
+        );
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
