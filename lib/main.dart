@@ -80,8 +80,10 @@ class AuthMethodScreen extends StatefulWidget {
 }
 
 class _AuthMethodScreenState extends State<AuthMethodScreen> {
-  static const _autoOpenWebAuth =
-      bool.fromEnvironment('ASTRAL_E2E_AUTO_WEBAUTH', defaultValue: false);
+  static const _autoOpenWebAuth = bool.fromEnvironment(
+    'ASTRAL_E2E_AUTO_WEBAUTH',
+    defaultValue: false,
+  );
 
   @override
   void initState() {
@@ -97,17 +99,15 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
 
     if (token != null && token.isNotEmpty && hasPin) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => AppLockScreen(token: token),
-        ),
+        MaterialPageRoute(builder: (_) => AppLockScreen(token: token)),
       );
       return;
     }
 
     if (_autoOpenWebAuth) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const WebAuthScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const WebAuthScreen()));
     }
   }
 
@@ -123,25 +123,22 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.asset(
-                  'assets/images/auth_logo.png',
-                  height: 140,
-                ),
+                Image.asset('assets/images/auth_logo.png', height: 140),
                 const SizedBox(height: 20),
                 Text(
                   'Добро пожаловать\nв АстралКлюч',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Войдите в аккаунт или зарегистрируйтесь, чтобы начать работу',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.black54,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
@@ -218,7 +215,10 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.04),
                     borderRadius: BorderRadius.circular(10),
@@ -233,9 +233,9 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
                 Text(
                   'Есть вопросы? Напишите нам support@astral.ru',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Colors.black54,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: Colors.black54),
                 ),
               ],
             ),
@@ -288,9 +288,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     }
 
     if (_firstPin != pin) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN-коды не совпадают')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('PIN-коды не совпадают')));
       setState(() {
         _firstPin = null;
         _pin = '';
@@ -307,29 +307,46 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   }
 
   Future<bool> _askBiometricPermission() async {
-    final decision = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Включить биометрию?'),
-          content: const Text(
-            'Сохранить токен и PIN в защищённом хранилище и входить по биометрии?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Нет'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Да'),
-            ),
-          ],
-        );
-      },
-    );
+    if (!mounted) return false;
 
-    return decision == true;
+    // Даём Navigator завершить текущий цикл после ввода PIN,
+    // чтобы showDialog не попадал в assert !_debugLocked.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return false;
+
+    try {
+      final decision = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Включить биометрию?'),
+            content: const Text(
+              'Сохранить токен и PIN в защищённом хранилище и входить по биометрии?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Нет'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Да'),
+              ),
+            ],
+          );
+        },
+      );
+
+      return decision == true;
+    } catch (e, st) {
+      dev.log(
+        'PIN_SETUP_BIOMETRIC_DIALOG_FAILED: $e',
+        name: 'AUTH',
+        stackTrace: st,
+      );
+      return false;
+    }
   }
 
   Future<void> _complete(String pin) async {
@@ -347,11 +364,26 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
       if (!mounted) return;
 
-      // После закрытия диалога подтверждения биометрии Navigator ещё может быть
-      // временно "залочен" в debug-режиме (assert !_debugLocked).
-      // Планируем переход на следующий frame, чтобы избежать re-entrant navigation.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+      await _openDocumentsSafely();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось завершить настройку PIN: $e')),
+      );
+      setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _openDocumentsSafely() async {
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      if (!mounted) return;
+
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+
+      try {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => DocumentsScreen(
@@ -360,14 +392,23 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
             ),
           ),
         );
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось завершить настройку PIN: $e')),
-      );
-      setState(() => _saving = false);
+        return;
+      } catch (e, st) {
+        lastError = e;
+        dev.log(
+          'PIN_SETUP_NAVIGATION_FAILED attempt=$attempt: $e',
+          name: 'AUTH',
+          stackTrace: st,
+        );
+        await Future<void>.delayed(Duration(milliseconds: 16 * attempt));
+      }
     }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Не удалось открыть документы: $lastError')),
+    );
+    setState(() => _saving = false);
   }
 
   Widget _pinDot(int index) {
@@ -442,8 +483,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                     'АстралКлюч',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -469,26 +510,45 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   const SizedBox(height: 18),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [_digitButton('1'), _digitButton('2'), _digitButton('3')],
+                    children: [
+                      _digitButton('1'),
+                      _digitButton('2'),
+                      _digitButton('3'),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [_digitButton('4'), _digitButton('5'), _digitButton('6')],
+                    children: [
+                      _digitButton('4'),
+                      _digitButton('5'),
+                      _digitButton('6'),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [_digitButton('7'), _digitButton('8'), _digitButton('9')],
+                    children: [
+                      _digitButton('7'),
+                      _digitButton('8'),
+                      _digitButton('9'),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [_emptyCircle(), _digitButton('0'), _backspaceButton()],
+                    children: [
+                      _emptyCircle(),
+                      _digitButton('0'),
+                      _backspaceButton(),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.04),
                       borderRadius: BorderRadius.circular(10),
@@ -544,7 +604,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
 
   Future<void> _init() async {
     final pin = await AuthTokenVault.readPin();
-    final useBiometric = !kIsWeb &&
+    final useBiometric =
+        !kIsWeb &&
         defaultTargetPlatform != TargetPlatform.windows &&
         await AuthTokenVault.isBiometricEnabled();
 
@@ -622,27 +683,29 @@ class _AppLockScreenState extends State<AppLockScreen> {
     if (_opening || !mounted) return;
     _opening = true;
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => DocumentsScreen(
-          authToken: widget.token,
-          authBanner: widget.authBanner,
-        ),
-      ),
-    ).then((_) {
-      if (mounted) {
-        setState(() {
-          _pin = '';
-          _biometricSuccessAnimating = false;
-          _canEnterPin = !_biometricEnabled;
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => DocumentsScreen(
+              authToken: widget.token,
+              authBanner: widget.authBanner,
+            ),
+          ),
+        )
+        .then((_) {
+          if (mounted) {
+            setState(() {
+              _pin = '';
+              _biometricSuccessAnimating = false;
+              _canEnterPin = !_biometricEnabled;
+            });
+            _opening = false;
+            if (_biometricEnabled) {
+              _biometricPrompted = false;
+              unawaited(_tryBiometric());
+            }
+          }
         });
-        _opening = false;
-        if (_biometricEnabled) {
-          _biometricPrompted = false;
-          unawaited(_tryBiometric());
-        }
-      }
-    });
   }
 
   void _onDigit(String digit) {
@@ -655,9 +718,9 @@ class _AppLockScreenState extends State<AppLockScreen> {
       if (_storedPin != null && next == _storedPin) {
         _openDocuments();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Неверный PIN-код')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Неверный PIN-код')));
         setState(() => _pin = '');
       }
     }
@@ -741,9 +804,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -763,8 +824,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
                     'АстралКлюч',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -790,17 +851,29 @@ class _AppLockScreenState extends State<AppLockScreen> {
                   const SizedBox(height: 18),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [_digitButton('1'), _digitButton('2'), _digitButton('3')],
+                    children: [
+                      _digitButton('1'),
+                      _digitButton('2'),
+                      _digitButton('3'),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [_digitButton('4'), _digitButton('5'), _digitButton('6')],
+                    children: [
+                      _digitButton('4'),
+                      _digitButton('5'),
+                      _digitButton('6'),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [_digitButton('7'), _digitButton('8'), _digitButton('9')],
+                    children: [
+                      _digitButton('7'),
+                      _digitButton('8'),
+                      _digitButton('9'),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -813,7 +886,10 @@ class _AppLockScreenState extends State<AppLockScreen> {
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.04),
                       borderRadius: BorderRadius.circular(10),
@@ -842,8 +918,10 @@ class WebAuthScreen extends StatefulWidget {
 }
 
 class _WebAuthScreenState extends State<WebAuthScreen> {
-  static const _clientId =
-      String.fromEnvironment('ASTRAL_OIDC_CLIENT_ID', defaultValue: 'astral_key');
+  static const _clientId = String.fromEnvironment(
+    'ASTRAL_OIDC_CLIENT_ID',
+    defaultValue: 'astral_key',
+  );
   static const _clientSecret = String.fromEnvironment(
     'ASTRAL_OIDC_CLIENT_SECRET',
     defaultValue: 'JAskxk427kP5Hj21',
@@ -917,10 +995,7 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text(
-                _status,
-                textAlign: TextAlign.center,
-              ),
+              Text(_status, textAlign: TextAlign.center),
             ],
           ),
         ),
@@ -949,9 +1024,9 @@ class _WindowsTokenAuthScreenState extends State<WindowsTokenAuthScreen> {
   Future<void> _submitToken() async {
     final token = _tokenController.text.trim();
     if (token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Вставь token')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Вставь token')));
       return;
     }
 
@@ -980,9 +1055,9 @@ class _WindowsTokenAuthScreenState extends State<WindowsTokenAuthScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось сохранить token: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Не удалось сохранить token: $e')));
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -1211,9 +1286,13 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
     if (input.contains('://')) {
       final uri = Uri.tryParse(input);
       final returnedState = uri?.queryParameters['state'];
-      if (returnedState != null && returnedState.isNotEmpty && returnedState != _state) {
+      if (returnedState != null &&
+          returnedState.isNotEmpty &&
+          returnedState != _state) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('State не совпадает, авторизация отклонена')),
+          const SnackBar(
+            content: Text('State не совпадает, авторизация отклонена'),
+          ),
         );
         return;
       }
@@ -1266,7 +1345,8 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
           final tokenSuffix = response.statusCode == 200
               ? (hasAccessToken ? ', token получен' : ', token не найден')
               : '';
-          _status = 'Ответ token endpoint: HTTP_${response.statusCode}$tokenSuffix';
+          _status =
+              'Ответ token endpoint: HTTP_${response.statusCode}$tokenSuffix';
         });
       }
 
@@ -1351,7 +1431,9 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
                           onPressed: _openAuth,
                           child: const Text('Открыть авторизацию снова'),
                         ),
-                      if (!_isSubmitting && !_finished && _codeController.text.isNotEmpty)
+                      if (!_isSubmitting &&
+                          !_finished &&
+                          _codeController.text.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: FilledButton(
@@ -1384,7 +1466,9 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
                             ? const SizedBox(
                                 height: 18,
                                 width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('Обменять код'),
                       ),
@@ -1408,11 +1492,7 @@ class DocumentsScreen extends StatefulWidget {
 }
 
 class _DocumentsScreenState extends State<DocumentsScreen> {
-  static const _documents = [
-    'Документ №1',
-    'Документ №2',
-    'Документ №3',
-  ];
+  static const _documents = ['Документ №1', 'Документ №2', 'Документ №3'];
 
   @override
   void initState() {
@@ -1420,9 +1500,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (widget.authBanner != null && widget.authBanner!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.authBanner!)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(widget.authBanner!)));
       });
     }
   }
@@ -1442,7 +1522,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     builder: (context) {
                       final appBarForeground =
                           Theme.of(context).appBarTheme.foregroundColor ??
-                              Theme.of(context).colorScheme.onSurface;
+                          Theme.of(context).colorScheme.onSurface;
 
                       return Row(
                         children: [
@@ -1451,17 +1531,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                               'Token: ${widget.authToken}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(color: appBarForeground),
                             ),
                           ),
                           Text(
                             'Скопировать токен →',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
+                            style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(color: appBarForeground),
                           ),
                           IconButton(
@@ -1473,7 +1549,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                               );
                               if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Токен скопирован')),
+                                const SnackBar(
+                                  content: Text('Токен скопирован'),
+                                ),
                               );
                             },
                             icon: const Icon(Icons.copy_rounded, size: 18),
@@ -1503,7 +1581,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               },
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
             ),
           );
@@ -1535,14 +1616,14 @@ class DocumentDetailsScreen extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                child: Text(_lorem, style: Theme.of(context).textTheme.bodyLarge),
+                child: Text(
+                  _lorem,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
               ),
             ),
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: null,
-              child: const Text('Подписать'),
-            ),
+            FilledButton(onPressed: null, child: const Text('Подписать')),
           ],
         ),
       ),
