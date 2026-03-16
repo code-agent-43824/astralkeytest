@@ -340,7 +340,10 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
       final onCompleted = widget.onCompleted;
       if (onCompleted != null) {
-        onCompleted();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          onCompleted();
+        });
         return;
       }
 
