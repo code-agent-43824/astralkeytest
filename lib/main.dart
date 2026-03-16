@@ -1198,7 +1198,7 @@ class MobileWebAuthScreen extends StatefulWidget {
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner, String token) {
-    if (_finished || _showLockScreen) return;
+    if (_showLockScreen) return;
     if (!mounted) return;
     setState(() {
       _finished = true;
