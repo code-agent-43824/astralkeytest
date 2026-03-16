@@ -252,11 +252,13 @@ class PinSetupScreen extends StatefulWidget {
     required this.token,
     required this.allowBiometric,
     this.authBanner,
+    this.onCompleted,
   });
 
   final String token;
   final bool allowBiometric;
   final String? authBanner;
+  final VoidCallback? onCompleted;
 
   @override
   State<PinSetupScreen> createState() => _PinSetupScreenState();
@@ -335,6 +337,12 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       await AuthTokenVault.setBiometricEnabled(useBiometric);
 
       if (!mounted) return;
+
+      final onCompleted = widget.onCompleted;
+      if (onCompleted != null) {
+        onCompleted();
+        return;
+      }
 
       await _openDocumentsSafely();
     } catch (e) {
@@ -1393,6 +1401,11 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
         token: _authToken!,
         allowBiometric: true,
         authBanner: _successBanner,
+        onCompleted: () {
+          final token = _authToken;
+          if (token == null) return;
+          _finishFlow('Web Auth: Авторизация успешна', token);
+        },
       );
     }
 
