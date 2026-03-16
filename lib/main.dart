@@ -265,6 +265,8 @@ class PinSetupScreen extends StatefulWidget {
 }
 
 class _PinSetupScreenState extends State<PinSetupScreen> {
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
   String _pin = '';
   String? _firstPin;
   String? _confirmedPin;
@@ -325,13 +327,71 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     if (_saving) return;
     final pin = _confirmedPin;
     if (pin == null) return;
-    unawaited(_complete(pin, useBiometric: enabled));
+
+    if (!enabled) {
+      unawaited(_complete(pin, useBiometric: false));
+      return;
+    }
+
+    unawaited(_confirmBiometricAndComplete(pin));
+  }
+
+  Future<void> _confirmBiometricAndComplete(String pin) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final supported = await _localAuth.isDeviceSupported();
+      if (!canCheck && !supported) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Биометрия недоступна на этом устройстве'),
+          ),
+        );
+        setState(() => _saving = false);
+        return;
+      }
+
+      final ok = await _localAuth.authenticate(
+        localizedReason: 'Подтвердите включение входа по биометрии',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+          useErrorDialogs: true,
+        ),
+      );
+
+      if (!ok) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Включение биометрии отменено')),
+        );
+        setState(() => _saving = false);
+        return;
+      }
+
+      await _persistAndContinue(pin, useBiometric: true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось включить биометрию: $e')),
+      );
+      setState(() => _saving = false);
+    }
   }
 
   Future<void> _complete(String pin, {required bool useBiometric}) async {
     if (_saving) return;
     setState(() => _saving = true);
+    await _persistAndContinue(pin, useBiometric: useBiometric);
+  }
 
+  Future<void> _persistAndContinue(
+    String pin, {
+    required bool useBiometric,
+  }) async {
     try {
       await AuthTokenVault.savePin(pin);
       await AuthTokenVault.setBiometricEnabled(useBiometric);
