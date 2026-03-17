@@ -358,7 +358,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         localizedReason: 'Подтвердите включение входа по биометрии',
         options: const AuthenticationOptions(
           biometricOnly: true,
-          stickyAuth: true,
+          stickyAuth: false,
           useErrorDialogs: true,
         ),
       );
@@ -712,7 +712,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
         localizedReason: 'Подтвердите вход в АстралКлюч',
         options: const AuthenticationOptions(
           biometricOnly: true,
-          stickyAuth: true,
+          stickyAuth: false,
           useErrorDialogs: true,
         ),
       );
@@ -1198,7 +1198,7 @@ class MobileWebAuthScreen extends StatefulWidget {
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   void _finishFlow(String banner, String token) {
-    if (_showLockScreen) return;
+    if (_showLockScreen || _showDocuments) return;
     if (!mounted) return;
     setState(() {
       _finished = true;
@@ -1206,6 +1206,20 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       _authToken = token;
       _showPinSetup = false;
       _showLockScreen = true;
+      _showDocuments = false;
+    });
+  }
+
+  void _openDocumentsDirectly(String banner, String token) {
+    if (_showDocuments) return;
+    if (!mounted) return;
+    setState(() {
+      _finished = true;
+      _successBanner = banner;
+      _authToken = token;
+      _showPinSetup = false;
+      _showLockScreen = false;
+      _showDocuments = true;
     });
   }
 
@@ -1222,6 +1236,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   bool _finished = false;
   bool _showPinSetup = false;
   bool _showLockScreen = false;
+  bool _showDocuments = false;
   String? _lastRedirectUri;
   String? _successBanner;
   String? _authToken;
@@ -1460,6 +1475,10 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showDocuments && _authToken != null) {
+      return DocumentsScreen(authToken: _authToken!, authBanner: _successBanner);
+    }
+
     if (_showLockScreen && _authToken != null) {
       return AppLockScreen(
         token: _authToken!,
@@ -1476,7 +1495,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
         onCompleted: () {
           final token = _authToken;
           if (token == null) return;
-          _finishFlow('Web Auth: Авторизация успешна', token);
+          _openDocumentsDirectly('Web Auth: Авторизация успешна', token);
         },
       );
     }
