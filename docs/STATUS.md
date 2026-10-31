@@ -2,6 +2,6 @@
 
 Приветственный экран прокручивается на небольшой высоте. Виджет-тест проходит, `flutter analyze` не сообщает замечаний, Android debug APK собирается.
 
-После отправки изменений Android и iOS прошли в GitHub Actions, Windows-сборка упала на несовместимости `local_auth_windows` с новым MSVC. Исправление выполняется.
+GitHub Actions собирает Android, iOS и Windows; все три задачи прошли после исправления настройки CMake для `local_auth_windows`.
 
 `pubspec.lock` пока не совпадает с `pubspec.yaml`: строгая установка по lockfile не проходит. В `lib/main.dart` есть значение, похожее на OAuth-секрет; владелец уведомлён, решение о нём ожидается.
