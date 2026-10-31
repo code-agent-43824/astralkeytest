@@ -1,16 +1,25 @@
 import 'package:astralkeytest/main.dart';
+import 'package:astralkeytest/src/core/app_version.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Auth method screen renders controls', (WidgetTester tester) async {
+  testWidgets('Welcome screen scrolls on a small display', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(const AstralKeyTestApp());
 
-    expect(find.text('Выбор способа аутентификации'), findsOneWidget);
-    expect(find.text('Demo'), findsOneWidget);
-    expect(find.text('Prod (пока недоступно)'), findsOneWidget);
-    expect(find.text('API Auth'), findsOneWidget);
-    expect(find.text('Web Auth'), findsOneWidget);
-    expect(find.text('Web Auth (w/o client id)'), findsOneWidget);
-    expect(find.text('v.0.0.8'), findsOneWidget);
+    expect(find.text('Добро пожаловать\nв АстралКлюч'), findsOneWidget);
+    expect(find.text('Войти с Астрал'), findsOneWidget);
+    expect(find.text('Версия $kAppVersion'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Версия $kAppVersion'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }

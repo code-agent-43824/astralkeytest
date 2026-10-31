@@ -114,130 +114,142 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Image.asset('assets/images/auth_logo.png', height: 140),
-                const SizedBox(height: 20),
-                Text(
-                  'Добро пожаловать\nв АстралКлюч',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Войдите в аккаунт или зарегистрируйтесь, чтобы начать работу',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const WebAuthScreen()),
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Войти с Астрал'),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Image.asset('assets/images/auth_logo.png', height: 140),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Добро пожаловать\nв АстралКлюч',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(10),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Войдите в аккаунт или зарегистрируйтесь, чтобы начать работу',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.black54),
                         ),
-                        child: const Text('ID'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                FilledButton.tonal(
-                  onPressed: null,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Создать новый аккаунт'),
-                ),
-                const SizedBox(height: 18),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
+                        const SizedBox(height: 24),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const WebAuthScreen(),
+                              ),
+                            );
+                          },
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('Войти с Астрал'),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text('ID'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        FilledButton.tonal(
+                          onPressed: null,
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Создать новый аккаунт'),
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.black.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: const Text(
-                            'Demo',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                          padding: const EdgeInsets.all(4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: const Text(
+                                    'Demo',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    'Prod',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.black54),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           child: Text(
-                            'Prod',
+                            'Версия $kAppVersion',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.black54),
+                            style: Theme.of(context).textTheme.labelMedium,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        Text(
+                          'Есть вопросы? Напишите нам support@astral.ru',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: Colors.black54),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'Версия $kAppVersion',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Есть вопросы? Напишите нам support@astral.ru',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: Colors.black54),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -618,7 +630,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                       horizontal: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -959,7 +971,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
                       horizontal: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -999,7 +1011,7 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
     defaultValue: 'astralkey://oauth.callback',
   );
 
-  String _status = 'Подготовка Web Auth...';
+  final String _status = 'Подготовка Web Auth...';
 
   @override
   void initState() {
@@ -1435,7 +1447,7 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       }
 
       if (response.statusCode == 200 && hasAccessToken) {
-        await AuthTokenVault.saveToken(accessToken!);
+        await AuthTokenVault.saveToken(accessToken);
         final hasPin = await AuthTokenVault.hasPin();
 
         if (!mounted) return;
@@ -1476,7 +1488,10 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
   @override
   Widget build(BuildContext context) {
     if (_showDocuments && _authToken != null) {
-      return DocumentsScreen(authToken: _authToken!, authBanner: _successBanner);
+      return DocumentsScreen(
+        authToken: _authToken!,
+        authBanner: _successBanner,
+      );
     }
 
     if (_showLockScreen && _authToken != null) {
@@ -1640,7 +1655,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                               await Clipboard.setData(
                                 ClipboardData(text: widget.authToken!),
                               );
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Токен скопирован'),
@@ -1659,7 +1674,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _documents.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final title = _documents[index];
           return SizedBox(
