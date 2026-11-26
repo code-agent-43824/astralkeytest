@@ -1,7 +1,5 @@
 # Передача работы
 
-В работе выпуск исправления Keychain. Опубликовать версию из `pubspec.yaml` через `.github/releases/` и проверить файлы на странице релиза.
-
-Для ручной проверки OAuth скачать архив `ios-simulator`, распаковать `Runner.app` и установить приложение в открытый симулятор Xcode. Пройти CAPTCHA и вход на demo, настроить PIN при первом входе и нажать «Копировать токен» на экране документов. [Архив из CI](https://github.com/code-agent-43824/astralkeytest/actions/runs/45840026273/artifacts/15128655770).
+Для ручной проверки OAuth скачать опубликованный архив симулятора, распаковать `Runner.app` и установить приложение в открытый симулятор Xcode. Пройти CAPTCHA и вход на demo, настроить PIN при первом входе и нажать «Копировать токен» на экране документов. [Архив v0.0.18](https://github.com/code-agent-43824/astralkeytest/releases/download/v0.0.18/astralkeytest-ios-simulator.zip).
 
 Ожидается решение владельца о встроенном OAuth-значении в `lib/main.dart`.
