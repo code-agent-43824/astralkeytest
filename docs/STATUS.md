@@ -1,6 +1,6 @@
 # Состояние
 
-В [GitHub Releases](https://github.com/code-agent-43824/astralkeytest/releases/latest) опубликованы Android APK, Windows x64 и два архива iOS для устройства и симулятора.
+В [GitHub Releases](https://github.com/code-agent-43824/astralkeytest/releases/latest) опубликованы сборки с обновлённым OAuth для Android, Windows x64, устройства iOS и симулятора. Отладочная подпись APK отличается от предыдущего релиза, поэтому установка поверх него недоступна.
 
 Приветственный экран прокручивается на небольшой высоте. Переход к авторизации на Android, iOS и Windows проверен виджет-тестами с заглушками. Анализатор чист, Android debug APK собирается.
 
