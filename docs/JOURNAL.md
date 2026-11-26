@@ -4,6 +4,8 @@
 
 В образе `macos-latest` доступен предыдущий Xcode. Отдельная стандартная метка `xcode-27` дала обе сборки с SDK из `.xcode-version`. Версия подтверждена проверкой `DTSDKName` после компоновки. Первый точный поиск симулятора Duo вернул пустой результат, поэтому процедура выбора опирается на идентификаторы рантаймов и профилей из `simctl`. [Стандартные раннеры GitHub](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) · [Первый запуск](https://github.com/code-agent-43824/astralkeytest/actions/runs/45881605555).
 
+Динамический выбор нашёл рантайм Duo на итоговом CI. UIKit отслеживает активные области, прочитанные внутри `layoutSubviews`, поэтому наблюдатель передаёт изменения геометрии даже при том же размере окна. Кнопки смены позы описаны Apple для Device Hub. Переходы по геометрии проверены в Flutter. [Зарезервированные области UIKit](https://developer.apple.com/documentation/uikit/uiview/reservedregion) · [Device Hub](https://developer.apple.com/documentation/xcode/interacting-with-your-app-in-device-hub).
+
 ## 2026-11-26 — адаптация для iPhone Duo
 
 Внешний дисплей, внутренний дисплей и окно Split View дают приложению разную доступную ширину и высоту. `AuthViewport` и `PinKeypad` используют ограничения окна после системных отступов. `DocumentsScreen` меняет количество колонок по ширине области списка. [Характеристики дисплеев Apple](https://www.apple.com/iphone-duo/specs/).
