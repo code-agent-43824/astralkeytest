@@ -1,7 +1,10 @@
 import 'package:astralkeytest/main.dart';
+import 'package:astralkeytest/src/widgets/duo_display_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/duo_regions.dart';
 
 void main() {
   testWidgets('Welcome and PIN controls fit a narrow window with large text', (
@@ -94,6 +97,67 @@ void main() {
       tester.getTopLeft(second).dy,
       greaterThan(tester.getTopLeft(first).dy),
     );
+  });
+
+  testWidgets('Duo fold keeps actions and the open document on one pane', (
+    tester,
+  ) async {
+    _configureView(tester);
+    tester.view.physicalSize = const Size(2853, 2007);
+    _setSafeArea(tester, const FakeViewPadding(left: 210, top: 60, bottom: 72));
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    var requests = 0;
+    messenger.setMockMethodCallHandler(duoRegionChannel, (call) async {
+      expect(call.method, 'requestRegions');
+      requests++;
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(duoRegionChannel, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) =>
+            _largeText(context, DuoDisplayLayout(child: child!)),
+        home: const DocumentsScreen(authToken: 'fixture-token'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(requests, 1);
+    final first = find.widgetWithText(FilledButton, 'Документ №1');
+    final second = find.widgetWithText(FilledButton, 'Документ №2');
+    expect(tester.getTopLeft(first).dy, tester.getTopLeft(second).dy);
+
+    const vertical = Rect.fromLTRB(444, 20, 464, 645);
+    await sendDuoRegions([vertical]);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(first).dx, greaterThan(vertical.right));
+    expect(
+      tester.getTopLeft(second).dy,
+      greaterThan(tester.getTopLeft(first).dy),
+    );
+    expect(find.byTooltip('Копировать токен').hitTestable(), findsOneWidget);
+    await tester.tap(second);
+    await tester.pumpAndSettle();
+
+    const horizontal = Rect.fromLTRB(70, 300, 940, 320);
+    await sendDuoRegions([horizontal]);
+    await tester.pumpAndSettle();
+    expect(find.byType(DocumentDetailsScreen), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(AppBar)).dy, horizontal.bottom);
+    final sign = find.widgetWithText(FilledButton, 'Подписать');
+    expect(tester.getBottomRight(sign).dy, lessThan(669 - 24));
+
+    await sendDuoRegions([]);
+    await tester.pumpAndSettle();
+    expect(find.text('Документ №2'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(first).dy, tester.getTopLeft(second).dy);
+    expect(requests, 1);
+    expect(tester.takeException(), isNull);
   });
 }
 

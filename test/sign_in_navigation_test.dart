@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'support/duo_regions.dart';
+
 void main() {
   testWidgets('Sign in opens the Windows token form', (tester) async {
     FlutterSecureStorage.setMockInitialValues({});
@@ -160,9 +162,13 @@ void main() {
 
           await _tapText(tester, '1');
           await _tapText(tester, '2');
+          await sendDuoRegions([const Rect.fromLTRB(300, 0, 300, 951)]);
+          await tester.pumpAndSettle();
+          await _tapText(tester, '0');
+          await sendDuoRegions([]);
           tester.view.physicalSize = outerDisplay;
           await tester.pumpAndSettle();
-          for (final digit in '091209'.split('')) {
+          for (final digit in '91209'.split('')) {
             await _tapText(tester, digit);
           }
           await _tapText(tester, 'Нет, оставить только PIN');

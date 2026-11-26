@@ -1,8 +1,29 @@
 import Foundation
 import Security
+import UIKit
 import XCTest
+@testable import Runner
 
 class RunnerTests: XCTestCase {
+
+  @MainActor
+  func testDuoRegionObserverIsAttachedToFlutterView() throws {
+    guard #available(iOS 27.1, *) else {
+      throw XCTSkip("Requires iOS 27.1")
+    }
+    let flutterView = try XCTUnwrap(
+      UIApplication.shared.connectedScenes
+        .compactMap { $0.delegate as? SceneDelegate }
+        .compactMap { $0.window?.rootViewController?.viewIfLoaded }
+        .first
+    )
+    flutterView.layoutIfNeeded()
+    let observer = try XCTUnwrap(
+      flutterView.subviews.compactMap { $0 as? DuoRegionObserver }.first
+    )
+    XCTAssertEqual(observer.frame, flutterView.bounds)
+    XCTAssertFalse(observer.isUserInteractionEnabled)
+  }
 
   func testKeychainCanStoreAndReadToken() {
     let item: [String: Any] = [

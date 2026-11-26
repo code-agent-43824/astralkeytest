@@ -5,6 +5,7 @@ import 'package:app_links/app_links.dart';
 import 'package:astralkeytest/src/auth/mobile_oauth.dart';
 import 'package:astralkeytest/src/core/app_version.dart';
 import 'package:astralkeytest/src/widgets/auth_layout.dart';
+import 'package:astralkeytest/src/widgets/duo_display_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,10 @@ class AstralKeyTestApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Astral Key Test',
+      builder: (_, child) =>
+          !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+          ? DuoDisplayLayout(child: child!)
+          : child!,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
