@@ -53,11 +53,13 @@ jobs:
 
   ios:
     name: Build iOS device and simulator apps
-    runs-on: macos-latest
+    runs-on: xcode-27
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v5
+      - name: Select iOS SDK
+        run: bash scripts/select-ios-sdk.sh
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -71,6 +73,8 @@ jobs:
           flutter build ios --release --no-codesign --no-pub
           device=build/ios/iphoneos/Runner.app
           test -x "$device/Runner"
+          sdk=$(/usr/libexec/PlistBuddy -c 'Print :DTSDKName' "$device/Info.plist")
+          test "$sdk" = "iphoneos$IOS_SDK_VERSION"
           ditto -c -k --keepParent "$device" "$RUNNER_TEMP/Runner-ios-release-no-codesign.zip"
 
           flutter build ios --simulator --debug --no-pub
@@ -78,6 +82,8 @@ jobs:
           test -x "$simulator/Runner"
           platform=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$simulator/Info.plist")
           test "$platform" = iPhoneSimulator
+          sdk=$(/usr/libexec/PlistBuddy -c 'Print :DTSDKName' "$simulator/Info.plist")
+          test "$sdk" = "iphonesimulator$IOS_SDK_VERSION"
           codesign --verify --strict "$simulator"
           xcrun lipo -archs "$simulator/Runner"
           ditto -c -k --keepParent "$simulator" "$RUNNER_TEMP/astralkeytest-ios-simulator.zip"

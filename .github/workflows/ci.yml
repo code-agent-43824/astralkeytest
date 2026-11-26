@@ -54,12 +54,14 @@ jobs:
           if-no-files-found: error
 
   ios:
-    name: iOS (macos-latest)
-    runs-on: macos-latest
+    name: iOS (xcode-27)
+    runs-on: xcode-27
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v5
+      - name: Select iOS SDK
+        run: bash scripts/select-ios-sdk.sh
       - name: Install Flutter (stable)
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$HOME/flutter"
@@ -67,7 +69,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Build iOS (no codesign)
-        run: flutter build ios --debug --no-codesign
+        run: |
+          flutter build ios --debug --no-codesign
+          sdk=$(/usr/libexec/PlistBuddy -c 'Print :DTSDKName' build/ios/iphoneos/Runner.app/Info.plist)
+          test "$sdk" = "iphoneos$IOS_SDK_VERSION"
       - name: Upload iOS artifact (single extraction)
         uses: actions/upload-artifact@v5
         with:
@@ -82,6 +87,8 @@ jobs:
           test -x "$app/Runner"
           platform=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")
           test "$platform" = iPhoneSimulator
+          sdk=$(/usr/libexec/PlistBuddy -c 'Print :DTSDKName' "$app/Info.plist")
+          test "$sdk" = "iphonesimulator$IOS_SDK_VERSION"
           codesign --verify --strict "$app"
           xcrun lipo -archs "$app/Runner"
           ditto -c -k --keepParent "$app" "$RUNNER_TEMP/astralkeytest-ios-simulator.zip"
@@ -92,18 +99,15 @@ jobs:
           path: ${{ runner.temp }}/astralkeytest-ios-simulator.zip
           if-no-files-found: error
           compression-level: 0
-      - name: Test Keychain on an iOS Simulator
+      - name: Test Keychain on iPhone Duo
         timeout-minutes: 12
         run: |
           set -euo pipefail
-          xcodebuild -version
-          device=$(xcrun simctl list -j devices available | jq -c '
-            [.devices[][] | select(.name | startswith("iPhone"))]
-            | (map(select(.name | startswith("iPhone Duo")))[0]
-               // map(select(.name | contains("Pro Max")))[-1] // .[0]) // empty')
-          test -n "$device"
-          simulator=$(jq -r .udid <<< "$device")
-          printf 'Testing on %s\n' "$(jq -r .name <<< "$device")"
+          runtime="com.apple.CoreSimulator.SimRuntime.iOS-${IOS_SDK_VERSION//./-}"
+          simulator=$(xcrun simctl list -j devices available | jq -r --arg runtime "$runtime" '
+            [(.devices[$runtime] // [])[] | select(.name == "iPhone Duo") | .udid][0] // empty')
+          test -n "$simulator"
+          printf 'Testing on iPhone Duo with iOS %s\n' "$IOS_SDK_VERSION"
           result="$RUNNER_TEMP/keychain-test.xcresult"
           xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner \
             -destination "platform=iOS Simulator,id=$simulator" -parallel-testing-enabled NO \
