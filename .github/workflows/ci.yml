@@ -41,6 +41,8 @@ jobs:
             android-caches-${{ runner.os }}-
       - name: Install dependencies
         run: flutter pub get
+      - name: Run widget tests
+        run: flutter test --no-pub
       - name: Build APK (debug)
         run: flutter build apk --debug
       - name: Upload Android artifact
@@ -71,6 +73,23 @@ jobs:
           name: ios-runner-no-codesign
           path: build/ios/iphoneos/Runner.app
           if-no-files-found: error
+      - name: Build iOS Simulator app
+        run: flutter build ios --simulator --debug --no-codesign --no-pub
+      - name: Verify and archive iOS Simulator app
+        run: |
+          app=build/ios/iphonesimulator/Runner.app
+          test -x "$app/Runner"
+          platform=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")
+          test "$platform" = iPhoneSimulator
+          xcrun lipo -archs "$app/Runner"
+          ditto -c -k --keepParent "$app" "$RUNNER_TEMP/astralkeytest-ios-simulator.zip"
+      - name: Upload iOS Simulator app
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-simulator
+          path: ${{ runner.temp }}/astralkeytest-ios-simulator.zip
+          if-no-files-found: error
+          compression-level: 0
 
   windows:
     name: Windows x64 (windows-latest)

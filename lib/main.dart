@@ -1016,10 +1016,13 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   @override
   void initState() {
     super.initState();
-    _runAuth();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openPlatformAuth();
+    });
   }
 
-  Future<void> _runAuth() async {
+  void _openPlatformAuth() {
     if (kIsWeb) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
