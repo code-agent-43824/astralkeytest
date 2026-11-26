@@ -7,4 +7,4 @@
 - [x] Восстановить Windows CI после обновления MSVC: устранить ошибку сборки `local_auth_windows` и проверить новый запуск.
 - [x] Исправить переход к авторизации с приветственного экрана и проверить его на Android, iOS и Windows в виджет-тестах.
 - [x] Собрать Android APK для проверки владельцем и добавить отдельный архив для iOS Simulator в CI.
-- [~] Опубликовать версию из `pubspec.yaml` в GitHub Releases с APK и архивами Windows, iOS для устройства и iOS Simulator.
+- [x] Опубликовать версию из `pubspec.yaml` в GitHub Releases с APK и архивами Windows, iOS для устройства и iOS Simulator.
