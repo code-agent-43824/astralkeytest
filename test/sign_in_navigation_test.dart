@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:astralkeytest/main.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -85,13 +87,14 @@ void main() {
     }
   });
 
-  testWidgets('iOS retries the system sign-in and copies the returned token', (
+  testWidgets('iOS sign-in and PIN survive switching iPhone Duo displays', (
     tester,
   ) async {
     const fixtureToken = 'fixture-access-token';
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     final openedUrls = <Uri>[];
+    final completeSignIn = Completer<void>();
     String? copiedToken;
     messenger.setMockMethodCallHandler(
       const MethodChannel('com.astralkey.astralkeytest/oauth'),
@@ -103,6 +106,7 @@ void main() {
         expect(call.arguments['callbackScheme'], 'astralkey');
         openedUrls.add(uri);
         if (openedUrls.length == 1) return null;
+        await completeSignIn.future;
         return Uri.parse(parameters['redirect_uri']!)
             .replace(
               queryParameters: {
@@ -125,8 +129,10 @@ void main() {
       return http.Response('{"access_token":"$fixtureToken"}', 200);
     });
 
-    tester.view.physicalSize = const Size(375, 568);
-    tester.view.devicePixelRatio = 1;
+    const outerDisplay = Size(1398, 2034);
+    const innerDisplay = Size(1878, 2670);
+    tester.view.physicalSize = outerDisplay;
+    tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     FlutterSecureStorage.setMockInitialValues({});
@@ -140,7 +146,11 @@ void main() {
         );
         await _tapText(tester, 'Попробовать войти снова');
 
+        tester.view.physicalSize = innerDisplay;
+        await tester.pumpAndSettle();
         expect(openedUrls, hasLength(2));
+        completeSignIn.complete();
+        await tester.pumpAndSettle();
         final first = openedUrls.first.queryParameters;
         final second = openedUrls.last.queryParameters;
         expect(first['state'], isNot(second['state']));
@@ -148,7 +158,11 @@ void main() {
         expect(await AuthTokenVault.readToken(), fixtureToken);
         expect(find.byType(PinSetupScreen), findsOneWidget);
 
-        for (final digit in '12091209'.split('')) {
+        await _tapText(tester, '1');
+        await _tapText(tester, '2');
+        tester.view.physicalSize = outerDisplay;
+        await tester.pumpAndSettle();
+        for (final digit in '091209'.split('')) {
           await _tapText(tester, digit);
         }
         await _tapText(tester, 'Нет, оставить только PIN');
@@ -162,7 +176,10 @@ void main() {
         await tester.pumpWidget(const AstralKeyTestApp());
         await tester.pumpAndSettle();
         expect(find.byType(AppLockScreen), findsOneWidget);
-        for (final digit in '1209'.split('')) {
+        await _tapText(tester, '1');
+        tester.view.physicalSize = innerDisplay;
+        await tester.pumpAndSettle();
+        for (final digit in '209'.split('')) {
           await _tapText(tester, digit);
         }
         expect(find.byType(DocumentsScreen), findsOneWidget);

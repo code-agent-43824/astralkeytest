@@ -4,6 +4,7 @@ import 'dart:developer' as dev;
 import 'package:app_links/app_links.dart';
 import 'package:astralkeytest/src/auth/mobile_oauth.dart';
 import 'package:astralkeytest/src/core/app_version.dart';
+import 'package:astralkeytest/src/widgets/auth_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -123,144 +124,128 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Image.asset('assets/images/auth_logo.png', height: 140),
-                        const SizedBox(height: 20),
-                        Text(
-                          'Добро пожаловать\nв АстралКлюч',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Войдите в аккаунт или зарегистрируйтесь, чтобы начать работу',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.black54),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const WebAuthScreen(),
-                              ),
-                            );
-                          },
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('Войти с Астрал'),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.25),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Text('ID'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        FilledButton.tonal(
-                          onPressed: null,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text('Создать новый аккаунт'),
-                        ),
-                        const SizedBox(height: 18),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.all(4),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: const Text(
-                                    'Demo',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const Expanded(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 8),
-                                  child: Text(
-                                    'Prod',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(color: Colors.black54),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Версия $kAppVersion',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          'Есть вопросы? Напишите нам support@astral.ru',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: Colors.black54),
-                        ),
-                      ],
+      body: AuthViewport(
+        builder: (compactHeight) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Image.asset(
+              'assets/images/auth_logo.png',
+              height: compactHeight ? 92 : 140,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Добро пожаловать\nв АстралКлюч',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Войдите в аккаунт или зарегистрируйтесь, чтобы начать работу',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WebAuthScreen()),
+                );
+              },
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  const Text('Войти с Астрал', textAlign: TextAlign.center),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
                     ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text('ID'),
                   ),
-                ),
+                ],
               ),
             ),
-          ),
+            const SizedBox(height: 10),
+            FilledButton.tonal(
+              onPressed: null,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Создать новый аккаунт'),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: const Text(
+                        'Demo',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Prod',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Версия $kAppVersion',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Есть вопросы? Напишите нам support@astral.ru',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: Colors.black54),
+            ),
+          ],
         ),
       ),
     );
@@ -487,173 +472,88 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     );
   }
 
-  Widget _digitButton(String digit) {
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: FilledButton(
-        onPressed: _saving ? null : () => _onDigit(digit),
-        style: FilledButton.styleFrom(
-          shape: const CircleBorder(),
-          backgroundColor: Colors.grey.shade100,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-        ),
-        child: Text(
-          digit,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-  }
-
-  Widget _emptyCircle() {
-    return const SizedBox(width: 72, height: 72);
-  }
-
-  Widget _backspaceButton() {
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: FilledButton(
-        onPressed: _saving ? null : _onBackspace,
-        style: FilledButton.styleFrom(
-          shape: const CircleBorder(),
-          backgroundColor: Colors.grey.shade100,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-        ),
-        child: const Icon(Icons.backspace_outlined),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Image.asset('assets/images/auth_logo.png', height: 110),
-                    const SizedBox(height: 12),
-                    Text(
-                      'АстралКлюч',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _awaitingBiometricChoice
-                          ? 'Включить вход по биометрии?'
-                          : _isConfirmStep
-                          ? 'Повторите PIN-код'
-                          : 'Введите новый PIN-код',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 18),
-                    if (_awaitingBiometricChoice) ...[
-                      Text(
-                        'PIN уже сохранён. Выберите, использовать ли биометрию для последующих входов.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _saving
-                            ? null
-                            : () => _onBiometricChoice(true),
-                        child: const Text('Да, включить биометрию'),
-                      ),
-                      const SizedBox(height: 10),
-                      FilledButton.tonal(
-                        onPressed: _saving
-                            ? null
-                            : () => _onBiometricChoice(false),
-                        child: const Text('Нет, оставить только PIN'),
-                      ),
-                      const SizedBox(height: 16),
-                    ] else ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _pinDot(0),
-                          const SizedBox(width: 12),
-                          _pinDot(1),
-                          const SizedBox(width: 12),
-                          _pinDot(2),
-                          const SizedBox(width: 12),
-                          _pinDot(3),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _digitButton('1'),
-                          _digitButton('2'),
-                          _digitButton('3'),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _digitButton('4'),
-                          _digitButton('5'),
-                          _digitButton('6'),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _digitButton('7'),
-                          _digitButton('8'),
-                          _digitButton('9'),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _emptyCircle(),
-                          _digitButton('0'),
-                          _backspaceButton(),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'Версия $kAppVersion',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                    ),
-                  ],
-                ),
+      body: AuthViewport(
+        builder: (compactHeight) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Image.asset(
+              'assets/images/auth_logo.png',
+              height: compactHeight ? 68 : 110,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'АстралКлюч',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _awaitingBiometricChoice
+                  ? 'Включить вход по биометрии?'
+                  : _isConfirmStep
+                  ? 'Повторите PIN-код'
+                  : 'Введите новый PIN-код',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 18),
+            if (_awaitingBiometricChoice) ...[
+              Text(
+                'PIN уже сохранён. Выберите, использовать ли биометрию для последующих входов.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _saving ? null : () => _onBiometricChoice(true),
+                child: const Text('Да, включить биометрию'),
+              ),
+              const SizedBox(height: 10),
+              FilledButton.tonal(
+                onPressed: _saving ? null : () => _onBiometricChoice(false),
+                child: const Text('Нет, оставить только PIN'),
+              ),
+              const SizedBox(height: 16),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _pinDot(0),
+                  const SizedBox(width: 12),
+                  _pinDot(1),
+                  const SizedBox(width: 12),
+                  _pinDot(2),
+                  const SizedBox(width: 12),
+                  _pinDot(3),
+                ],
+              ),
+              const SizedBox(height: 18),
+              PinKeypad(
+                compactHeight: compactHeight,
+                onDigit: _saving ? null : _onDigit,
+                onBackspace: _saving ? null : _onBackspace,
+              ),
+              const SizedBox(height: 16),
+            ],
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Версия $kAppVersion',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelMedium,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -834,64 +734,6 @@ class _AppLockScreenState extends State<AppLockScreen> {
     );
   }
 
-  Widget _digitButton(String digit) {
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: FilledButton(
-        onPressed: (_opening || !_canEnterPin) ? null : () => _onDigit(digit),
-        style: FilledButton.styleFrom(
-          shape: const CircleBorder(),
-          backgroundColor: Colors.grey.shade100,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-        ),
-        child: Text(
-          digit,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-  }
-
-  Widget _emptyCircle() {
-    return const SizedBox(width: 72, height: 72);
-  }
-
-  Widget _backspaceButton() {
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: FilledButton(
-        onPressed: (_opening || !_canEnterPin) ? null : _onBackspace,
-        style: FilledButton.styleFrom(
-          shape: const CircleBorder(),
-          backgroundColor: Colors.grey.shade100,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-        ),
-        child: const Icon(Icons.backspace_outlined),
-      ),
-    );
-  }
-
-  Widget _biometricButton() {
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: FilledButton(
-        onPressed: _opening ? null : () => unawaited(_tryBiometric()),
-        style: FilledButton.styleFrom(
-          shape: const CircleBorder(),
-          backgroundColor: Colors.grey.shade100,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-        ),
-        child: const Icon(Icons.fingerprint),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
@@ -899,104 +741,66 @@ class _AppLockScreenState extends State<AppLockScreen> {
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Image.asset('assets/images/auth_logo.png', height: 110),
-                    const SizedBox(height: 12),
-                    Text(
-                      'АстралКлюч',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _canEnterPin
-                          ? 'Введите PIN-код'
-                          : 'Подтвердите вход по биометрии',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _pinDot(0),
-                        const SizedBox(width: 12),
-                        _pinDot(1),
-                        const SizedBox(width: 12),
-                        _pinDot(2),
-                        const SizedBox(width: 12),
-                        _pinDot(3),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _digitButton('1'),
-                        _digitButton('2'),
-                        _digitButton('3'),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _digitButton('4'),
-                        _digitButton('5'),
-                        _digitButton('6'),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _digitButton('7'),
-                        _digitButton('8'),
-                        _digitButton('9'),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _biometricEnabled ? _biometricButton() : _emptyCircle(),
-                        _digitButton('0'),
-                        _backspaceButton(),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'Версия $kAppVersion',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                    ),
-                  ],
-                ),
+      body: AuthViewport(
+        builder: (compactHeight) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Image.asset(
+              'assets/images/auth_logo.png',
+              height: compactHeight ? 68 : 110,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'АстралКлюч',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _canEnterPin
+                  ? 'Введите PIN-код'
+                  : 'Подтвердите вход по биометрии',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _pinDot(0),
+                const SizedBox(width: 12),
+                _pinDot(1),
+                const SizedBox(width: 12),
+                _pinDot(2),
+                const SizedBox(width: 12),
+                _pinDot(3),
+              ],
+            ),
+            const SizedBox(height: 18),
+            PinKeypad(
+              compactHeight: compactHeight,
+              onDigit: _opening || !_canEnterPin ? null : _onDigit,
+              onBackspace: _opening || !_canEnterPin ? null : _onBackspace,
+              showBiometric: _biometricEnabled,
+              onBiometric: _opening ? null : () => unawaited(_tryBiometric()),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Версия $kAppVersion',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelMedium,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -1083,17 +887,14 @@ class _WebAuthScreenState extends State<WebAuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Web Auth')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(_status, textAlign: TextAlign.center),
-            ],
-          ),
+      body: AuthViewport(
+        builder: (_) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(_status, textAlign: TextAlign.center),
+          ],
         ),
       ),
     );
@@ -1400,29 +1201,24 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Вход в Астрал ID')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_exchanging)
-                  const CircularProgressIndicator()
-                else
-                  const Icon(Icons.info_outline, size: 36),
-                const SizedBox(height: 16),
-                Text(_status, textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton.tonal(
-                  onPressed: _opening || _exchanging ? null : _openAuth,
-                  child: const Text('Попробовать войти снова'),
-                ),
-              ],
+      body: AuthViewport(
+        maxWidth: 560,
+        builder: (_) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_exchanging)
+              const Center(child: CircularProgressIndicator())
+            else
+              const Icon(Icons.info_outline, size: 36),
+            const SizedBox(height: 16),
+            Text(_status, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+              onPressed: _opening || _exchanging ? null : _openAuth,
+              child: const Text('Попробовать войти снова'),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -1455,88 +1251,88 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
+  Future<void> _copyToken(String token) async {
+    await Clipboard.setData(ClipboardData(text: token));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Токен скопирован')));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final token = widget.authToken;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Электронные перевозочные документы'),
-        bottom: widget.authToken == null
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(44),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
-                  child: Builder(
-                    builder: (context) {
-                      final appBarForeground =
-                          Theme.of(context).appBarTheme.foregroundColor ??
-                          Theme.of(context).colorScheme.onSurface;
-
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Token: ${widget.authToken}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: appBarForeground),
+        title: const Text('Документы'),
+        actions: [
+          if (token != null)
+            IconButton(
+              tooltip: 'Копировать токен',
+              onPressed: () => _copyToken(token),
+              icon: const Icon(Icons.copy_rounded),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 920),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (token != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      'Token: $token',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const spacing = 12.0;
+                    final width = constraints.maxWidth;
+                    final cardWidth = width >= 540
+                        ? (width - spacing) / 2
+                        : width;
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        for (final title in _documents)
+                          SizedBox(
+                            width: cardWidth,
+                            child: FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(0, 96),
+                                alignment: Alignment.centerLeft,
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        DocumentDetailsScreen(title: title),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                title,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
                             ),
                           ),
-                          Text(
-                            'Скопировать токен →',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: appBarForeground),
-                          ),
-                          IconButton(
-                            tooltip: 'Копировать токен',
-                            color: appBarForeground,
-                            onPressed: () async {
-                              await Clipboard.setData(
-                                ClipboardData(text: widget.authToken!),
-                              );
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Токен скопирован'),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.copy_rounded, size: 18),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                      ],
+                    );
+                  },
                 ),
-              ),
-      ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _documents.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final title = _documents[index];
-          return SizedBox(
-            height: 96,
-            child: FilledButton.tonal(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => DocumentDetailsScreen(title: title),
-                  ),
-                );
-              },
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -1557,22 +1353,30 @@ class DocumentDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(
-                  _lorem,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        _lorem,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(onPressed: null, child: const Text('Подписать')),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: null, child: const Text('Подписать')),
-          ],
+          ),
         ),
       ),
     );
