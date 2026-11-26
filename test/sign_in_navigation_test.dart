@@ -87,108 +87,109 @@ void main() {
     }
   });
 
-  testWidgets('iOS sign-in and PIN survive switching iPhone Duo displays', (
-    tester,
-  ) async {
-    const fixtureToken = 'fixture-access-token';
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    final openedUrls = <Uri>[];
-    final completeSignIn = Completer<void>();
-    String? copiedToken;
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('com.astralkey.astralkeytest/oauth'),
-      (call) async {
-        expect(call.method, 'authenticate');
-        final uri = Uri.parse(call.arguments['url'] as String);
-        final parameters = uri.queryParameters;
-        expect(parameters['code_challenge_method'], 'S256');
-        expect(call.arguments['callbackScheme'], 'astralkey');
-        openedUrls.add(uri);
-        if (openedUrls.length == 1) return null;
-        await completeSignIn.future;
-        return Uri.parse(parameters['redirect_uri']!)
-            .replace(
-              queryParameters: {
-                'code': 'fixture-code',
-                'state': parameters['state'],
-              },
-            )
-            .toString();
-      },
-    );
-    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') {
-        copiedToken = call.arguments['text'] as String;
+  testWidgets(
+    'iOS sign-in and PIN survive resizing between Duo display sizes',
+    (tester) async {
+      const fixtureToken = 'fixture-access-token';
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final openedUrls = <Uri>[];
+      final completeSignIn = Completer<void>();
+      String? copiedToken;
+      messenger.setMockMethodCallHandler(
+        const MethodChannel('com.astralkey.astralkeytest/oauth'),
+        (call) async {
+          expect(call.method, 'authenticate');
+          final uri = Uri.parse(call.arguments['url'] as String);
+          final parameters = uri.queryParameters;
+          expect(parameters['code_challenge_method'], 'S256');
+          expect(call.arguments['callbackScheme'], 'astralkey');
+          openedUrls.add(uri);
+          if (openedUrls.length == 1) return null;
+          await completeSignIn.future;
+          return Uri.parse(parameters['redirect_uri']!)
+              .replace(
+                queryParameters: {
+                  'code': 'fixture-code',
+                  'state': parameters['state'],
+                },
+              )
+              .toString();
+        },
+      );
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copiedToken = call.arguments['text'] as String;
+        }
+        return null;
+      });
+      final client = MockClient((request) async {
+        expect(request.bodyFields['code'], 'fixture-code');
+        expect(request.bodyFields['code_verifier'], isNotEmpty);
+        return http.Response('{"access_token":"$fixtureToken"}', 200);
+      });
+
+      const outerDisplay = Size(1398, 2034);
+      const innerDisplay = Size(2007, 2853);
+      tester.view.physicalSize = outerDisplay;
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      FlutterSecureStorage.setMockInitialValues({});
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        await http.runWithClient(() async {
+          await _openSignIn(tester);
+          expect(
+            find.text('Вход отменён. Можно попробовать снова.'),
+            findsOneWidget,
+          );
+          await _tapText(tester, 'Попробовать войти снова');
+
+          tester.view.physicalSize = innerDisplay;
+          await tester.pumpAndSettle();
+          expect(openedUrls, hasLength(2));
+          completeSignIn.complete();
+          await tester.pumpAndSettle();
+          final first = openedUrls.first.queryParameters;
+          final second = openedUrls.last.queryParameters;
+          expect(first['state'], isNot(second['state']));
+          expect(first['code_challenge'], isNot(second['code_challenge']));
+          expect(await AuthTokenVault.readToken(), fixtureToken);
+          expect(find.byType(PinSetupScreen), findsOneWidget);
+
+          await _tapText(tester, '1');
+          await _tapText(tester, '2');
+          tester.view.physicalSize = outerDisplay;
+          await tester.pumpAndSettle();
+          for (final digit in '091209'.split('')) {
+            await _tapText(tester, digit);
+          }
+          await _tapText(tester, 'Нет, оставить только PIN');
+          expect(find.byType(DocumentsScreen), findsOneWidget);
+
+          await tester.tap(find.byTooltip('Копировать токен'));
+          await tester.pumpAndSettle();
+          expect(copiedToken, fixtureToken);
+
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pumpWidget(const AstralKeyTestApp());
+          await tester.pumpAndSettle();
+          expect(find.byType(AppLockScreen), findsOneWidget);
+          await _tapText(tester, '1');
+          tester.view.physicalSize = innerDisplay;
+          await tester.pumpAndSettle();
+          for (final digit in '209'.split('')) {
+            await _tapText(tester, digit);
+          }
+          expect(find.byType(DocumentsScreen), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        }, () => client);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
       }
-      return null;
-    });
-    final client = MockClient((request) async {
-      expect(request.bodyFields['code'], 'fixture-code');
-      expect(request.bodyFields['code_verifier'], isNotEmpty);
-      return http.Response('{"access_token":"$fixtureToken"}', 200);
-    });
-
-    const outerDisplay = Size(1398, 2034);
-    const innerDisplay = Size(1878, 2670);
-    tester.view.physicalSize = outerDisplay;
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    FlutterSecureStorage.setMockInitialValues({});
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    try {
-      await http.runWithClient(() async {
-        await _openSignIn(tester);
-        expect(
-          find.text('Вход отменён. Можно попробовать снова.'),
-          findsOneWidget,
-        );
-        await _tapText(tester, 'Попробовать войти снова');
-
-        tester.view.physicalSize = innerDisplay;
-        await tester.pumpAndSettle();
-        expect(openedUrls, hasLength(2));
-        completeSignIn.complete();
-        await tester.pumpAndSettle();
-        final first = openedUrls.first.queryParameters;
-        final second = openedUrls.last.queryParameters;
-        expect(first['state'], isNot(second['state']));
-        expect(first['code_challenge'], isNot(second['code_challenge']));
-        expect(await AuthTokenVault.readToken(), fixtureToken);
-        expect(find.byType(PinSetupScreen), findsOneWidget);
-
-        await _tapText(tester, '1');
-        await _tapText(tester, '2');
-        tester.view.physicalSize = outerDisplay;
-        await tester.pumpAndSettle();
-        for (final digit in '091209'.split('')) {
-          await _tapText(tester, digit);
-        }
-        await _tapText(tester, 'Нет, оставить только PIN');
-        expect(find.byType(DocumentsScreen), findsOneWidget);
-
-        await tester.tap(find.byTooltip('Копировать токен'));
-        await tester.pumpAndSettle();
-        expect(copiedToken, fixtureToken);
-
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpWidget(const AstralKeyTestApp());
-        await tester.pumpAndSettle();
-        expect(find.byType(AppLockScreen), findsOneWidget);
-        await _tapText(tester, '1');
-        tester.view.physicalSize = innerDisplay;
-        await tester.pumpAndSettle();
-        for (final digit in '209'.split('')) {
-          await _tapText(tester, digit);
-        }
-        expect(find.byType(DocumentsScreen), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      }, () => client);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+    },
+  );
 }
 
 Future<void> _tapText(WidgetTester tester, String label) async {

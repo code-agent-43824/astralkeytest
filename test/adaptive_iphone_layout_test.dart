@@ -44,6 +44,7 @@ void main() {
     tester,
   ) async {
     _configureView(tester);
+    const innerDisplay = Size(2007, 2853);
     tester.view.physicalSize = const Size(1398, 2034);
     _setSafeArea(tester, const FakeViewPadding(top: 150, bottom: 102));
     await tester.pumpWidget(
@@ -61,7 +62,7 @@ void main() {
     );
     expect(find.byTooltip('Копировать токен').hitTestable(), findsOneWidget);
 
-    tester.view.physicalSize = const Size(1878, 2670);
+    tester.view.physicalSize = innerDisplay;
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(second).dy, tester.getTopLeft(first).dy);
     expect(
@@ -69,23 +70,23 @@ void main() {
       greaterThan(tester.getTopLeft(first).dx),
     );
 
-    tester.view.physicalSize = const Size(2670, 1878);
+    tester.view.physicalSize = innerDisplay.flipped;
     _setSafeArea(
       tester,
       const FakeViewPadding(left: 120, right: 120, bottom: 72),
     );
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(first).dx, greaterThan(40));
-    expect(tester.getTopRight(second).dx, lessThan(850));
+    expect(tester.getTopRight(second).dx, lessThan(911));
     await tester.tap(second);
     await tester.pumpAndSettle();
     expect(find.byType(DocumentDetailsScreen), findsOneWidget);
 
-    tester.view.physicalSize = const Size(870, 1878);
+    tester.view.physicalSize = const Size(870, 2007);
     await tester.pumpAndSettle();
     expect(find.text('Документ №2'), findsOneWidget);
     final sign = find.widgetWithText(FilledButton, 'Подписать');
-    expect(tester.getBottomRight(sign).dy, lessThan(626 - 24));
+    expect(tester.getBottomRight(sign).dy, lessThan(669 - 24));
     expect(tester.takeException(), isNull);
     await tester.pageBack();
     await tester.pumpAndSettle();
