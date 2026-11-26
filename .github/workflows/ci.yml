@@ -83,7 +83,6 @@ jobs:
           platform=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")
           test "$platform" = iPhoneSimulator
           codesign --verify --strict "$app"
-          codesign --display --entitlements :- "$app" 2>/dev/null | plutil -extract keychain-access-groups.0 raw -o - -
           xcrun lipo -archs "$app/Runner"
           ditto -c -k --keepParent "$app" "$RUNNER_TEMP/astralkeytest-ios-simulator.zip"
       - name: Upload iOS Simulator app
