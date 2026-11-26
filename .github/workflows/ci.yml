@@ -75,13 +75,15 @@ jobs:
           path: build/ios/iphoneos/Runner.app
           if-no-files-found: error
       - name: Build iOS Simulator app
-        run: flutter build ios --simulator --debug --no-codesign --no-pub
+        run: flutter build ios --simulator --debug --no-pub
       - name: Verify and archive iOS Simulator app
         run: |
           app=build/ios/iphonesimulator/Runner.app
           test -x "$app/Runner"
           platform=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")
           test "$platform" = iPhoneSimulator
+          codesign --verify --strict "$app"
+          codesign --display --entitlements :- "$app" 2>/dev/null | plutil -extract keychain-access-groups.0 raw -o - -
           xcrun lipo -archs "$app/Runner"
           ditto -c -k --keepParent "$app" "$RUNNER_TEMP/astralkeytest-ios-simulator.zip"
       - name: Upload iOS Simulator app
@@ -91,6 +93,18 @@ jobs:
           path: ${{ runner.temp }}/astralkeytest-ios-simulator.zip
           if-no-files-found: error
           compression-level: 0
+      - name: Test Keychain on an iOS Simulator
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          simulator=$(xcrun simctl list -j devices available | jq -r '[.devices[][] | select(.name | startswith("iPhone")) | .udid][0] // empty')
+          test -n "$simulator"
+          result="$RUNNER_TEMP/keychain-test.xcresult"
+          xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner \
+            -destination "platform=iOS Simulator,id=$simulator" -parallel-testing-enabled NO \
+            -only-testing:RunnerTests/RunnerTests/testKeychainCanStoreAndReadToken \
+            -resultBundlePath "$result" -quiet
+          xcrun xcresulttool get test-results summary --path "$result" | jq -e '.passedTests == 1 and .failedTests == 0'
 
   windows:
     name: Windows x64 (windows-latest)

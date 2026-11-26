@@ -83,4 +83,33 @@ void main() {
     );
     expect(tokenRequests, 0);
   });
+
+  test(
+    'Reports a transport failure without exposing the request URL',
+    () async {
+      final callback = Uri.parse(redirect).replace(
+        queryParameters: {
+          'code': 'fixture-code',
+          'state': attempt.authorizationUri.queryParameters['state'],
+        },
+      );
+      await http.runWithClient(
+        () async {
+          await expectLater(
+            attempt.exchangeCallback(callback),
+            throwsA(
+              isA<OAuthSignInException>().having(
+                (error) => error.message,
+                'message',
+                'Не удалось связаться со стендом для получения токена.',
+              ),
+            ),
+          );
+        },
+        () => MockClient((request) async {
+          throw http.ClientException('fixture connection failure', request.url);
+        }),
+      );
+    },
+  );
 }

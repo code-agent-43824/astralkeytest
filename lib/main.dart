@@ -90,11 +90,22 @@ class _AuthMethodScreenState extends State<AuthMethodScreen> {
   }
 
   Future<void> _bootstrap() async {
-    final token = await AuthTokenVault.readToken();
-    final hasPin = await AuthTokenVault.hasPin();
+    String? storedToken;
+    var hasPin = false;
+    try {
+      storedToken = await AuthTokenVault.readToken();
+      hasPin =
+          storedToken != null &&
+          storedToken.isNotEmpty &&
+          await AuthTokenVault.hasPin();
+    } on PlatformException catch (error) {
+      final status = error.details is int ? error.details : 'unavailable';
+      dev.log('Secure storage read failed: $status', name: 'AUTH');
+    }
 
     if (!mounted) return;
 
+    final token = storedToken;
     if (token != null && token.isNotEmpty && hasPin) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => AppLockScreen(token: token)),
@@ -1347,6 +1358,13 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
       });
     } on OAuthSignInException catch (error) {
       if (mounted) setState(() => _status = error.message);
+    } on PlatformException catch (error) {
+      if (mounted) {
+        final status = error.details is int ? ' (код ${error.details})' : '';
+        setState(() {
+          _status = 'Не удалось сохранить вход в защищённом хранилище$status.';
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(

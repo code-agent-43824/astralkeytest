@@ -93,17 +93,29 @@ final class MobileOAuthAttempt {
     request.headers['Authorization'] =
         'Basic ${base64Encode(utf8.encode(credentials))}';
 
+    final http.Response response;
     try {
-      final response = await client
+      response = await client
           .send(request)
           .then(http.Response.fromStream)
           .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) {
-        throw OAuthSignInException(
-          'Стенд отклонил обмен кода на токен (HTTP ${response.statusCode}).',
-        );
-      }
+    } on TimeoutException {
+      throw const OAuthSignInException('Стенд не ответил вовремя.');
+    } catch (_) {
+      throw const OAuthSignInException(
+        'Не удалось связаться со стендом для получения токена.',
+      );
+    } finally {
+      client.close();
+    }
 
+    if (response.statusCode != 200) {
+      throw OAuthSignInException(
+        'Стенд отклонил обмен кода на токен (HTTP ${response.statusCode}).',
+      );
+    }
+
+    try {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body is Map<String, dynamic>) {
         final token = body['access_token'];
@@ -114,10 +126,6 @@ final class MobileOAuthAttempt {
       throw const OAuthSignInException(
         'Стенд вернул ответ в неверном формате.',
       );
-    } on TimeoutException {
-      throw const OAuthSignInException('Стенд не ответил вовремя.');
-    } finally {
-      client.close();
     }
   }
 
