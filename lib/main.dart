@@ -1,15 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:developer' as dev;
-import 'dart:math';
 
 import 'package:app_links/app_links.dart';
+import 'package:astralkeytest/src/auth/mobile_oauth.dart';
 import 'package:astralkeytest/src/core/app_version.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:local_auth/local_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -524,122 +522,124 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Image.asset('assets/images/auth_logo.png', height: 110),
-                  const SizedBox(height: 12),
-                  Text(
-                    'АстралКлюч',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _awaitingBiometricChoice
-                        ? 'Включить вход по биометрии?'
-                        : _isConfirmStep
-                        ? 'Повторите PIN-код'
-                        : 'Введите новый PIN-код',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 18),
-                  if (_awaitingBiometricChoice) ...[
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Image.asset('assets/images/auth_logo.png', height: 110),
+                    const SizedBox(height: 12),
                     Text(
-                      'PIN уже сохранён. Выберите, использовать ли биометрию для последующих входов.',
+                      'АстралКлюч',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _saving
-                          ? null
-                          : () => _onBiometricChoice(true),
-                      child: const Text('Да, включить биометрию'),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 10),
-                    FilledButton.tonal(
-                      onPressed: _saving
-                          ? null
-                          : () => _onBiometricChoice(false),
-                      child: const Text('Нет, оставить только PIN'),
-                    ),
-                    const SizedBox(height: 16),
-                  ] else ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _pinDot(0),
-                        const SizedBox(width: 12),
-                        _pinDot(1),
-                        const SizedBox(width: 12),
-                        _pinDot(2),
-                        const SizedBox(width: 12),
-                        _pinDot(3),
-                      ],
+                    Text(
+                      _awaitingBiometricChoice
+                          ? 'Включить вход по биометрии?'
+                          : _isConfirmStep
+                          ? 'Повторите PIN-код'
+                          : 'Введите новый PIN-код',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _digitButton('1'),
-                        _digitButton('2'),
-                        _digitButton('3'),
-                      ],
+                    if (_awaitingBiometricChoice) ...[
+                      Text(
+                        'PIN уже сохранён. Выберите, использовать ли биометрию для последующих входов.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: _saving
+                            ? null
+                            : () => _onBiometricChoice(true),
+                        child: const Text('Да, включить биометрию'),
+                      ),
+                      const SizedBox(height: 10),
+                      FilledButton.tonal(
+                        onPressed: _saving
+                            ? null
+                            : () => _onBiometricChoice(false),
+                        child: const Text('Нет, оставить только PIN'),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _pinDot(0),
+                          const SizedBox(width: 12),
+                          _pinDot(1),
+                          const SizedBox(width: 12),
+                          _pinDot(2),
+                          const SizedBox(width: 12),
+                          _pinDot(3),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _digitButton('1'),
+                          _digitButton('2'),
+                          _digitButton('3'),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _digitButton('4'),
+                          _digitButton('5'),
+                          _digitButton('6'),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _digitButton('7'),
+                          _digitButton('8'),
+                          _digitButton('9'),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _emptyCircle(),
+                          _digitButton('0'),
+                          _backspaceButton(),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Версия $kAppVersion',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _digitButton('4'),
-                        _digitButton('5'),
-                        _digitButton('6'),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _digitButton('7'),
-                        _digitButton('8'),
-                        _digitButton('9'),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _emptyCircle(),
-                        _digitButton('0'),
-                        _backspaceButton(),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                   ],
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'Версия $kAppVersion',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -890,97 +890,99 @@ class _AppLockScreenState extends State<AppLockScreen> {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Image.asset('assets/images/auth_logo.png', height: 110),
-                  const SizedBox(height: 12),
-                  Text(
-                    'АстралКлюч',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _canEnterPin
-                        ? 'Введите PIN-код'
-                        : 'Подтвердите вход по биометрии',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _pinDot(0),
-                      const SizedBox(width: 12),
-                      _pinDot(1),
-                      const SizedBox(width: 12),
-                      _pinDot(2),
-                      const SizedBox(width: 12),
-                      _pinDot(3),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _digitButton('1'),
-                      _digitButton('2'),
-                      _digitButton('3'),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _digitButton('4'),
-                      _digitButton('5'),
-                      _digitButton('6'),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _digitButton('7'),
-                      _digitButton('8'),
-                      _digitButton('9'),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _biometricEnabled ? _biometricButton() : _emptyCircle(),
-                      _digitButton('0'),
-                      _backspaceButton(),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'Версия $kAppVersion',
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Image.asset('assets/images/auth_logo.png', height: 110),
+                    const SizedBox(height: 12),
+                    Text(
+                      'АстралКлюч',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelMedium,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Text(
+                      _canEnterPin
+                          ? 'Введите PIN-код'
+                          : 'Подтвердите вход по биометрии',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _pinDot(0),
+                        const SizedBox(width: 12),
+                        _pinDot(1),
+                        const SizedBox(width: 12),
+                        _pinDot(2),
+                        const SizedBox(width: 12),
+                        _pinDot(3),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _digitButton('1'),
+                        _digitButton('2'),
+                        _digitButton('3'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _digitButton('4'),
+                        _digitButton('5'),
+                        _digitButton('6'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _digitButton('7'),
+                        _digitButton('8'),
+                        _digitButton('9'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _biometricEnabled ? _biometricButton() : _emptyCircle(),
+                        _digitButton('0'),
+                        _backspaceButton(),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Версия $kAppVersion',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1212,314 +1214,174 @@ class MobileWebAuthScreen extends StatefulWidget {
 }
 
 class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
-  void _finishFlow(String banner, String token) {
-    if (_showLockScreen || _showDocuments) return;
-    if (!mounted) return;
-    setState(() {
-      _finished = true;
-      _successBanner = banner;
-      _authToken = token;
-      _showPinSetup = false;
-      _showLockScreen = true;
-      _showDocuments = false;
-    });
-  }
+  static const _systemSession = MethodChannel(
+    'com.astralkey.astralkeytest/oauth',
+  );
+  static const _successBanner = 'Авторизация успешна';
 
-  void _openDocumentsDirectly(String banner, String token) {
-    if (_showDocuments) return;
-    if (!mounted) return;
-    setState(() {
-      _finished = true;
-      _successBanner = banner;
-      _authToken = token;
-      _showPinSetup = false;
-      _showLockScreen = false;
-      _showDocuments = true;
-    });
-  }
-
-  static const _authorizeEndpoint =
-      'https://identity.demo.astral-dev.ru/connect/authorize';
-  static const _tokenEndpoint =
-      'https://identity.demo.astral-dev.ru/connect/token';
-
-  final _codeController = TextEditingController();
-  final _state = _randomToken();
-  final AppLinks _appLinks = AppLinks();
-  StreamSubscription<Uri>? _sub;
-  bool _isSubmitting = false;
-  bool _finished = false;
-  bool _showPinSetup = false;
-  bool _showLockScreen = false;
-  bool _showDocuments = false;
-  String? _lastRedirectUri;
-  String? _successBanner;
+  late final bool _usesSystemSession;
+  StreamSubscription<Uri>? _links;
+  MobileOAuthAttempt? _attempt;
+  bool _opening = false;
+  bool _exchanging = false;
+  bool _hasPin = false;
+  bool _pinSetupComplete = false;
   String? _authToken;
-  String _status = 'Открываем страницу авторизации...';
-
-  bool get _isMobile =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
-
-  static String _randomToken() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(24, (_) => random.nextInt(256));
-    return base64UrlEncode(bytes).replaceAll('=', '');
-  }
-
-  Uri get _authUri {
-    return Uri.parse(_authorizeEndpoint).replace(
-      queryParameters: {
-        'client_id': widget.clientId,
-        'redirect_uri': widget.redirectUri,
-        'response_type': 'code',
-        'scope': 'openid',
-        'response_mode': 'query',
-        'state': _state,
-      },
-    );
-  }
-
-  bool _isRedirectUri(Uri uri) {
-    final redirectBase = widget.redirectUri.split('?').first;
-    return uri.toString().startsWith(redirectBase);
-  }
-
-  void _handleRedirectUri(Uri uri) {
-    if (!_isRedirectUri(uri) || _finished || _isSubmitting) return;
-
-    final raw = uri.toString();
-    if (_lastRedirectUri == raw) return;
-    _lastRedirectUri = raw;
-
-    _codeController.text = raw;
-    unawaited(_exchangeCode());
-  }
-
-  Future<void> _startMobileFlow() async {
-    Uri? initialUri;
-    try {
-      initialUri = await _appLinks.getInitialLink();
-    } on PlatformException catch (e) {
-      dev.log('WEB_AUTH_INITIAL_LINK_ERROR: ${e.code}', name: 'WEB_AUTH');
-    }
-
-    if (!mounted || _finished) return;
-
-    if (initialUri != null && _isRedirectUri(initialUri)) {
-      _handleRedirectUri(initialUri);
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (_isSubmitting || _finished || _showLockScreen || _showPinSetup) {
-        return;
-      }
-    }
-
-    await _openAuth();
-  }
+  String _status = 'Открываем вход в Астрал ID...';
 
   @override
   void initState() {
     super.initState();
-    if (_isMobile) {
-      _sub = _appLinks.uriLinkStream.listen(_handleRedirectUri);
-      unawaited(_startMobileFlow());
+    _usesSystemSession = defaultTargetPlatform == TargetPlatform.iOS;
+    if (!_usesSystemSession) {
+      _links = AppLinks().uriLinkStream.listen(_receiveLink);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_openAuth());
+    });
   }
 
   @override
   void dispose() {
-    _sub?.cancel();
-    _codeController.dispose();
+    unawaited(_links?.cancel());
+    if (_usesSystemSession && _opening && _attempt != null) {
+      unawaited(_cancelSystemSession());
+    }
     super.dispose();
   }
 
-  Future<void> _openAuth() async {
-    final ok = await launchUrl(_authUri, mode: LaunchMode.externalApplication);
-    if (!ok && mounted) {
-      setState(() => _status = 'Не удалось открыть браузер');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось открыть браузер')),
-      );
-    } else if (mounted) {
-      setState(() => _status = 'Ожидаем callback после входа...');
-    }
-  }
-
-  String _extractCode(String input) {
-    final value = input.trim();
-    if (value.contains('://')) {
-      final uri = Uri.tryParse(value);
-      return uri?.queryParameters['code']?.trim() ?? '';
-    }
-    return value;
-  }
-
-  String? _extractAccessToken(String rawBody) {
+  Future<void> _cancelSystemSession() async {
     try {
-      final decoded = jsonDecode(rawBody);
-      if (decoded is Map<String, dynamic>) {
-        final token = decoded['access_token'];
-        if (token is String && token.isNotEmpty) {
-          return token;
+      await _systemSession.invokeMethod<void>('cancel');
+    } catch (_) {
+      // The screen has already closed.
+    }
+  }
+
+  Future<void> _openAuth() async {
+    if (_opening || _exchanging || _authToken != null) return;
+
+    final attempt = MobileOAuthAttempt(
+      clientId: widget.clientId,
+      clientSecret: widget.clientSecret,
+      redirectUri: widget.redirectUri,
+    );
+    setState(() {
+      _attempt = attempt;
+      _opening = true;
+      _status = 'Открываем вход в Астрал ID...';
+    });
+
+    try {
+      if (_usesSystemSession) {
+        final callback = await _systemSession
+            .invokeMethod<String>('authenticate', {
+              'url': attempt.authorizationUri.toString(),
+              'callbackScheme': attempt.callbackScheme,
+            });
+        if (!mounted || _attempt != attempt) return;
+        if (callback == null) {
+          _finishAttempt('Вход отменён. Можно попробовать снова.');
+          return;
+        }
+
+        final uri = Uri.tryParse(callback);
+        if (uri == null || !attempt.acceptsCallback(uri)) {
+          _finishAttempt('Не удалось подтвердить возврат из входа.');
+          return;
+        }
+        await _exchangeCallback(attempt, uri);
+      } else {
+        final launched = await launchUrl(
+          attempt.authorizationUri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!mounted || _attempt != attempt) return;
+        if (launched) {
+          setState(() => _status = 'Завершите вход в браузере.');
+        } else {
+          _finishAttempt('Не удалось открыть браузер.');
         }
       }
     } catch (_) {
-      // ignore invalid json bodies
+      if (mounted && _attempt == attempt) {
+        _finishAttempt('Не удалось открыть окно входа.');
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
     }
-    return null;
   }
 
-  Future<void> _exchangeCode() async {
-    if (_isSubmitting || _finished) return;
-
-    final input = _codeController.text.trim();
-    final code = _extractCode(input);
-    if (code.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Вставь code или полный redirect URL')),
-      );
-      return;
-    }
-
-    if (input.contains('://')) {
-      final uri = Uri.tryParse(input);
-      final returnedState = uri?.queryParameters['state'];
-      if (returnedState != null &&
-          returnedState.isNotEmpty &&
-          returnedState != _state) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('State не совпадает, авторизация отклонена'),
-          ),
-        );
-        return;
-      }
-    }
-
+  void _finishAttempt(String message) {
     setState(() {
-      _isSubmitting = true;
-      _status = 'Обмениваем код на токен...';
+      _attempt = null;
+      _status = message;
     });
+  }
 
-    final watchdog = Timer(const Duration(seconds: 25), () {
-      if (!mounted || _finished) return;
-      setState(() {
-        _status = 'Таймаут обмена кода на токен (TOKEN_EXCHANGE_TIMEOUT)';
-      });
+  void _receiveLink(Uri uri) {
+    final attempt = _attempt;
+    if (attempt != null && attempt.acceptsCallback(uri)) {
+      unawaited(_exchangeCallback(attempt, uri));
+    }
+  }
+
+  Future<void> _exchangeCallback(MobileOAuthAttempt attempt, Uri uri) async {
+    if (!mounted || _attempt != attempt) return;
+    setState(() {
+      _attempt = null;
+      _exchanging = true;
+      _status = 'Получаем токен доступа...';
     });
 
     try {
-      final basicAuth = base64Encode(
-        utf8.encode('${widget.clientId}:${widget.clientSecret}'),
-      );
-
-      final response = await http
-          .post(
-            Uri.parse(_tokenEndpoint),
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Authorization': 'Basic $basicAuth',
-            },
-            body: {
-              'grant_type': 'authorization_code',
-              'code': code,
-              'redirect_uri': widget.redirectUri,
-            },
-          )
-          .timeout(
-            const Duration(seconds: 12),
-            onTimeout: () => http.Response('TOKEN_EXCHANGE_TIMEOUT', 598),
-          );
-
-      final accessToken = _extractAccessToken(response.body);
-      final hasAccessToken = accessToken != null && accessToken.isNotEmpty;
-      dev.log(
-        'WEB_AUTH_TOKEN_RESULT status=${response.statusCode} token=${hasAccessToken ? 'present' : 'missing'}',
-        name: 'WEB_AUTH',
-      );
-
+      final token = await attempt.exchangeCallback(uri);
+      if (!mounted) return;
+      final hasPin = await AuthTokenVault.hasPin();
+      if (!mounted) return;
+      await AuthTokenVault.saveToken(token);
+      if (!mounted) return;
+      setState(() {
+        _authToken = token;
+        _hasPin = hasPin;
+      });
+    } on OAuthSignInException catch (error) {
+      if (mounted) setState(() => _status = error.message);
+    } catch (_) {
       if (mounted) {
-        setState(() {
-          final tokenSuffix = response.statusCode == 200
-              ? (hasAccessToken ? ', token получен' : ', token не найден')
-              : '';
-          _status =
-              'Ответ token endpoint: HTTP_${response.statusCode}$tokenSuffix';
-        });
-      }
-
-      if (response.statusCode == 200 && hasAccessToken) {
-        await AuthTokenVault.saveToken(accessToken);
-        final hasPin = await AuthTokenVault.hasPin();
-
-        if (!mounted) return;
-
-        if (hasPin) {
-          _finishFlow('Web Auth: Авторизация успешна', accessToken);
-        } else {
-          setState(() {
-            _finished = true;
-            _successBanner = 'Web Auth: Авторизация успешна';
-            _authToken = accessToken;
-            _showPinSetup = true;
-          });
-        }
-      } else if (mounted && response.statusCode == 200) {
-        setState(() {
-          _status =
-              'Ответ token endpoint: HTTP_200, но access_token не найден (TOKEN_MISSING)';
-        });
-      } else if (mounted) {
-        setState(() {
-          _status =
-              'Ошибка обмена кода: HTTP_${response.statusCode}${response.body.isNotEmpty ? ', ${response.body}' : ''}';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _status = 'Ошибка обмена: $e';
-        });
+        setState(
+          () => _status = 'Не удалось завершить вход. Попробуйте снова.',
+        );
       }
     } finally {
-      watchdog.cancel();
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _exchanging = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_showDocuments && _authToken != null) {
-      return DocumentsScreen(
-        authToken: _authToken!,
-        authBanner: _successBanner,
-      );
-    }
-
-    if (_showLockScreen && _authToken != null) {
-      return AppLockScreen(
-        token: _authToken!,
-        skipAuthOnce: true,
-        authBanner: _successBanner,
-      );
-    }
-
-    if (_showPinSetup && _authToken != null) {
+    final token = _authToken;
+    if (token != null) {
+      if (_hasPin) {
+        return AppLockScreen(
+          token: token,
+          skipAuthOnce: true,
+          authBanner: _successBanner,
+        );
+      }
+      if (_pinSetupComplete) {
+        return DocumentsScreen(authToken: token, authBanner: _successBanner);
+      }
       return PinSetupScreen(
-        token: _authToken!,
+        token: token,
         allowBiometric: true,
         authBanner: _successBanner,
-        onCompleted: () {
-          final token = _authToken;
-          if (token == null) return;
-          _openDocumentsDirectly('Web Auth: Авторизация успешна', token);
-        },
+        onCompleted: () => setState(() => _pinSetupComplete = true),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Web Auth')),
+      appBar: AppBar(title: const Text('Вход в Астрал ID')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
@@ -1528,62 +1390,19 @@ class _MobileWebAuthScreenState extends State<MobileWebAuthScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: _isMobile
-                  ? [
-                      if (_isSubmitting)
-                        const CircularProgressIndicator()
-                      else
-                        const Icon(Icons.info_outline, size: 36),
-                      const SizedBox(height: 16),
-                      Text(_status, textAlign: TextAlign.center),
-                      const SizedBox(height: 12),
-                      if (!_isSubmitting && !_finished)
-                        FilledButton.tonal(
-                          onPressed: _openAuth,
-                          child: const Text('Открыть авторизацию снова'),
-                        ),
-                      if (!_isSubmitting &&
-                          !_finished &&
-                          _codeController.text.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: FilledButton(
-                            onPressed: _exchangeCode,
-                            child: const Text('Повторить обмен'),
-                          ),
-                        ),
-                    ]
-                  : [
-                      const Text(
-                        '1) Нажми кнопку ниже и войди в браузере.\n2) Скопируй параметр code из адресной строки redirect (или весь redirect URL).\n3) Вставь сюда и нажми Обменять код.',
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _openAuth,
-                        child: const Text('Открыть Web Auth в браузере'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _codeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Code или полный redirect URL',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _isSubmitting ? null : _exchangeCode,
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Обменять код'),
-                      ),
-                    ],
+              children: [
+                if (_exchanging)
+                  const CircularProgressIndicator()
+                else
+                  const Icon(Icons.info_outline, size: 36),
+                const SizedBox(height: 16),
+                Text(_status, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton.tonal(
+                  onPressed: _opening || _exchanging ? null : _openAuth,
+                  child: const Text('Попробовать войти снова'),
+                ),
+              ],
             ),
           ),
         ),
